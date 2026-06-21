@@ -1,0 +1,6 @@
+{
+  "name": "canvas-apps-code-review",
+  "description": "Read-only review of Power Apps Canvas apps - extract .pa.yaml source and produce a structured Markdown audit (delegation, performance, redundancy, maintainability, dead code, error handling).",
+  "version": "1.0.0",
+  "author": "Andrew Godlewsky"
+}

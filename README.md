@@ -9,18 +9,25 @@ hand-off brief for a downstream planning/implementing agent.
 It never modifies the app: it treats the `.msapp` / solution `.zip` as plain archives, reads only the
 active `\Src\*.pa.yaml` source, and writes output to a separate `./canvas-analysis/` folder.
 
-## The skill lives in [`canvas-app-analyzer/`](./canvas-app-analyzer)
+## This repo is an installable agent plugin
+
+It ships as the **`canvas-apps-code-review`** agent plugin (a `plugin.json` at the root plus a
+`skills/` folder). The plugin format is shared across **VS Code, the GitHub Copilot CLI, and Claude
+Code**, so one install works in all three.
 
 ```
-canvas-app-analyzer/
-  SKILL.md                                       # the skill Copilot follows
-  scripts/analyze-canvas.ps1                     # deterministic helper (unzip + inventory + findings)
-  reference/delegation.md                        # cited authority: delegation & data efficiency
-  reference/coding-standards-and-performance.md  # cited authority: the other five categories
-  README.md                                      # full install + usage notes
+plugin.json                                        # plugin manifest (name, description, version)
+skills/
+  canvas-app-analyzer/
+    SKILL.md                                       # the skill Copilot follows
+    scripts/analyze-canvas.ps1                     # deterministic helper (unzip + inventory + findings)
+    reference/delegation.md                        # cited authority: delegation & data efficiency
+    reference/coding-standards-and-performance.md  # cited authority: the other five categories
+    README.md                                      # full install + usage notes
 ```
 
-See [`canvas-app-analyzer/README.md`](./canvas-app-analyzer/README.md) for the complete guide.
+See [`skills/canvas-app-analyzer/README.md`](./skills/canvas-app-analyzer/README.md) for the
+complete guide.
 
 ## How it works (hybrid: script does mechanics, model does judgment)
 
@@ -31,17 +38,31 @@ formulas). It also emits line-anchored **leads** for the judgment categories. Th
 the two bundled Microsoft-Learn-grounded reference files to confirm/reject leads, assign severity and
 confidence, and author the report - citing an authority in every finding.
 
-## Install (GitHub Copilot - VS Code agent mode or the Copilot CLI)
+## Install (one action - from this Git URL)
 
-A skill is a folder containing `SKILL.md`. Drop `canvas-app-analyzer/` into a Copilot skills
-directory:
+**VS Code (GitHub Copilot):** open the Command Palette and run **Chat: Install Plugin From Source**,
+then paste:
+
+```
+https://github.com/AndrewGodlewsky/CanvasAppsCodeReview.git
+```
+
+VS Code clones and installs the plugin - no Marketplace account needed. The same plugin also works
+in the **GitHub Copilot CLI** and **Claude Code** (shared plugin format).
+
+Once installed, prompt *"Analyze this inherited canvas app: ./MySolution.zip"* (Copilot picks the
+skill from its description), or invoke it explicitly as `/canvas-apps-code-review:canvas-app-analyzer`.
+
+### Manual install (fallback)
+
+A skill is just a folder containing `SKILL.md`. To install without the plugin mechanism, drop
+`skills/canvas-app-analyzer/` into a Copilot skills directory:
 
 - **Personal:** `~/.copilot/skills/canvas-app-analyzer/` (or `~/.agents/skills/...`, `~/.claude/skills/...`)
 - **Per-repo:** `.github/skills/canvas-app-analyzer/` (or `.claude/skills/...`, `.agents/skills/...`)
 
-Then in a Copilot session: `/skills reload` -> `/skills info canvas-app-analyzer`, and prompt
-*"Analyze this inherited canvas app: ./MySolution.zip"*. Works in **VS Code Copilot agent mode** and
-the **GitHub Copilot CLI**.
+Then in a Copilot session: `/skills reload` -> `/skills info canvas-app-analyzer`. Works in **VS Code
+Copilot agent mode** and the **GitHub Copilot CLI**.
 
 ## Example output
 
@@ -59,7 +80,7 @@ for the same run.
 powershell -NoProfile -File test/build-fixture.ps1
 
 # Run the helper directly against one
-powershell -NoProfile -ExecutionPolicy Bypass -File canvas-app-analyzer/scripts/analyze-canvas.ps1 -Path test/fixtures/SampleSolution.zip
+powershell -NoProfile -ExecutionPolicy Bypass -File skills/canvas-app-analyzer/scripts/analyze-canvas.ps1 -Path test/fixtures/SampleSolution.zip
 ```
 
 ## Design docs
