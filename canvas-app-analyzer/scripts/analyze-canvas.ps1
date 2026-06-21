@@ -1,0 +1,788 @@
+<#
+.SYNOPSIS
+    Canvas App Analyzer - deterministic extraction + inventory + mechanical findings.
+
+.DESCRIPTION
+    READ-ONLY helper for the canvas-app-analyzer Copilot CLI skill. It does the
+    mechanical, reproducible half of the analysis so the model can spend its budget
+    on judgment. It never modifies the input app and never writes back into any .msapp.
+
+    Pipeline (current Microsoft guidance - no `pac`, no deprecated tooling):
+      1. Treat the input .zip / .msapp as a plain ZIP archive and extract it.
+      2. Recursively (case-insensitively) find *.msapp anywhere in the tree - raw
+         solution exports and `pac solution unpack` layouts place them differently,
+         so NO path is hardcoded.
+      3. A .msapp is itself a ZIP - extract it and read ONLY \Src\*.pa.yaml (the one
+         active source format). The sibling .json is explicitly unstable; we ignore it
+         for source code (we read \DataSources\*.json only to resolve connector TYPE).
+      4. Branch on app count: 0 -> stop, 1 -> proceed, many -> list for the model to
+         prompt. If a selected app has no \Src\*.pa.yaml it predates the YAML format
+         -> stop with an actionable message.
+
+    Extraction uses [System.IO.Compression.ZipFile] rather than Expand-Archive: it is
+    the same dependency-free, `pac`-free "plain unzip" the spec calls for, but unlike
+    Expand-Archive (PS 5.1) it accepts the non-.zip ".msapp" extension directly without
+    a rename. No external modules are required.
+
+.PARAMETER Path
+    Path to the solution .zip OR a bare .msapp.
+
+.PARAMETER AppName
+    When several Canvas apps are found, the schema/display name of the one to analyze.
+    Omit on the first run; the script lists the apps and the model re-invokes with this.
+
+.PARAMETER OutputRoot
+    Where per-app output folders are created. Default: ./canvas-analysis
+
+.OUTPUTS
+    Always prints a single status JSON object to stdout (the model's control-flow signal).
+    On success also writes, under <OutputRoot>/<AppName>/ :
+      src/                         persisted \Src\*.pa.yaml (browsable + citation targets)
+      .analysis/index.json         inventory the model reads first
+      .analysis/index.md           compact human-browsable orientation digest
+      .analysis/mechanical-findings.json   deterministic findings + judgment "leads"
+      .analysis/status.json        copy of the stdout status
+
+.NOTES
+    Parsing is intentionally line/indent-based, not a full YAML parse: PowerShell 5.1
+    ships no YAML cmdlet and adding a module would break the "native only" constraint.
+    The model always re-reads the cited .pa.yaml line to confirm before it reports -
+    so heuristic parsing produces *leads*, never unverified findings.
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true, Position = 0)]
+    [string] $Path,
+
+    [Parameter(Position = 1)]
+    [string] $AppName,
+
+    [string] $OutputRoot = (Join-Path (Get-Location) 'canvas-analysis')
+)
+
+# No Set-StrictMode: this script does deliberate dynamic property access against
+# arbitrary .pa.yaml / .json shapes; strict mode would throw on absent members.
+# Robustness comes from the top-level try/catch, which always emits a status JSON.
+$ErrorActionPreference = 'Stop'
+$work = $null
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+function Write-Status {
+    param([hashtable] $Obj, [string] $StatusFilePath)
+    $json = $Obj | ConvertTo-Json -Depth 12
+    if ($StatusFilePath) {
+        $dir = Split-Path -Parent $StatusFilePath
+        if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        $json | Out-File -FilePath $StatusFilePath -Encoding utf8
+    }
+    Write-Output $json
+}
+
+function New-TempDir {
+    $name = 'caa_' + ([System.Guid]::NewGuid().ToString('N'))
+    $dir = Join-Path ([System.IO.Path]::GetTempPath()) $name
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    return $dir
+}
+
+function Expand-ZipArchive {
+    # Plain-archive extraction, dependency-free, accepts any extension (.zip or .msapp).
+    param([string] $ArchivePath, [string] $Destination)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    if (-not (Test-Path $Destination)) { New-Item -ItemType Directory -Path $Destination -Force | Out-Null }
+    [System.IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path $ArchivePath).Path, $Destination)
+}
+
+# ---------------------------------------------------------------------------
+# Connector type mapping (best-effort; the model refines via \DataSources + leads)
+# ---------------------------------------------------------------------------
+function Resolve-Connector {
+    param([string] $Raw)
+    if ([string]::IsNullOrWhiteSpace($Raw)) { return 'unknown' }
+    $r = $Raw.ToLowerInvariant()
+    if ($r -match 'sharepoint')            { return 'SharePoint' }
+    if ($r -match 'commondataservice|dataverse|cds') { return 'Dataverse' }
+    if ($r -match 'sql')                   { return 'SQL Server' }
+    if ($r -match 'excel')                 { return 'Excel' }
+    if ($r -match 'office365users|office365groups') { return 'Office 365' }
+    return $Raw
+}
+
+# ---------------------------------------------------------------------------
+# Known control type words (for default-name detection + prefix table)
+# Default names look like "<TypeWord><digits>" e.g. Gallery3, Button1, Screen2.
+# ---------------------------------------------------------------------------
+$ControlTypeWords = @(
+    'Screen','Button','Gallery','Label','TextInput','Text','Icon','Image','Rectangle',
+    'Circle','Toggle','Slider','Checkbox','CheckBox','Radio','Dropdown','DropDown','ComboBox',
+    'Combobox','DatePicker','DataTable','Form','EditForm','DisplayForm','Card','Container',
+    'GroupContainer','Group','Timer','Camera','Barcode','PenInput','Rating','RichTextEditor',
+    'HtmlText','Video','Audio','Microphone','PowerBITile','Chart','ColumnChart','LineChart',
+    'PieChart','ListBox','Shape','Component','Header','Badge','Link','Table','Tab','TabList'
+)
+$defaultNameRegex = '^(' + ($ControlTypeWords -join '|') + ')_?\d+$'
+
+# Variable / collection naming prefixes (from coding-standards reference)
+# loc = context, gbl = global, col = collection, scp = scope (With)
+
+# Functions that are non-delegable on every connector (high-confidence delegation leads)
+$alwaysLocalFns = @('FirstN','LastN','Last','Choices','Concat','GroupBy','Ungroup')
+
+try {
+    if (-not (Test-Path $Path)) {
+        Write-Status -Obj @{ status = 'error'; message = "Input path not found: $Path" }
+        exit 0
+    }
+
+    $statusFileEarly = Join-Path $OutputRoot '_status.json'
+
+    # --- 1. Extract the outer archive (or treat a bare .msapp as the only app) -------
+    $work = New-TempDir
+    $ext = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
+
+    $msapps = @()
+    if ($ext -eq '.msapp') {
+        # Bare .msapp: it IS the single app. Copy into the workspace and use directly.
+        $dest = Join-Path $work ([System.IO.Path]::GetFileName($Path))
+        Copy-Item -LiteralPath $Path -Destination $dest -Force
+        $msapps = @(Get-Item -LiteralPath $dest)
+    }
+    else {
+        $solutionDir = Join-Path $work 'solution'
+        Expand-ZipArchive -ArchivePath $Path -Destination $solutionDir
+        # Recursive, case-insensitive *.msapp search - robust to raw-export AND
+        # pac-solution-unpack (canvasapps/<schema>/) layouts. No hardcoded path.
+        $msapps = @(Get-ChildItem -Path $solutionDir -Recurse -File |
+                    Where-Object { $_.Extension -ieq '.msapp' })
+    }
+
+    # --- App-count branching --------------------------------------------------------
+    if ($msapps.Count -eq 0) {
+        Write-Status -StatusFilePath $statusFileEarly -Obj @{
+            status  = 'no-canvas-app'
+            message = 'No Canvas app (.msapp) was found in this archive. It may contain only flows, tables, or other solution components. Nothing to analyze.'
+        }
+        exit 0
+    }
+
+    if ($msapps.Count -gt 1 -and [string]::IsNullOrWhiteSpace($AppName)) {
+        $list = @($msapps | ForEach-Object { @{ name = [System.IO.Path]::GetFileNameWithoutExtension($_.Name); file = $_.Name } })
+        Write-Status -StatusFilePath $statusFileEarly -Obj @{
+            status  = 'multiple-apps'
+            message = 'Multiple Canvas apps were found. Ask the user which one to analyze, then re-run with -AppName "<name>".'
+            apps    = $list
+        }
+        exit 0
+    }
+
+    # Select the target .msapp
+    if ($msapps.Count -gt 1) {
+        $chosen = $msapps | Where-Object { [System.IO.Path]::GetFileNameWithoutExtension($_.Name) -ieq $AppName } | Select-Object -First 1
+        if (-not $chosen) {
+            $list = @($msapps | ForEach-Object { @{ name = [System.IO.Path]::GetFileNameWithoutExtension($_.Name); file = $_.Name } })
+            Write-Status -StatusFilePath $statusFileEarly -Obj @{
+                status  = 'app-not-found'
+                message = "No Canvas app named '$AppName' was found. Choose one of the listed apps and re-run with -AppName."
+                apps    = $list
+            }
+            exit 0
+        }
+    }
+    else {
+        $chosen = $msapps[0]
+    }
+
+    # --- 2/3. Extract the chosen .msapp ---------------------------------------------
+    $appExtract = Join-Path $work ('app_' + [System.IO.Path]::GetFileNameWithoutExtension($chosen.Name))
+    Expand-ZipArchive -ArchivePath $chosen.FullName -Destination $appExtract
+
+    # Find the \Src folder (case-insensitive) and its *.pa.yaml files.
+    $srcDir = Get-ChildItem -Path $appExtract -Recurse -Directory |
+              Where-Object { $_.Name -ieq 'Src' } | Select-Object -First 1
+    $paFiles = @()
+    if ($srcDir) {
+        $paFiles = @(Get-ChildItem -Path $srcDir.FullName -Recurse -File |
+                     Where-Object { $_.Name -ilike '*.pa.yaml' })
+    }
+
+    # --- 6. Legacy preflight: no \Src\*.pa.yaml -> stop loud ------------------------
+    if ($paFiles.Count -eq 0) {
+        Write-Status -StatusFilePath $statusFileEarly -Obj @{
+            status  = 'legacy-no-src'
+            message = "This app ('$([System.IO.Path]::GetFileNameWithoutExtension($chosen.Name))') predates the YAML source format (no \Src\*.pa.yaml inside the .msapp). To regenerate it: open the app in Power Apps Studio -> File -> Save as -> This computer, download the new .msapp, and re-run. No analysis of the unstable .json files is performed."
+        }
+        exit 0
+    }
+
+    # Resolve a friendly app name (CanvasManifest.json if present, else file name)
+    $displayName = [System.IO.Path]::GetFileNameWithoutExtension($chosen.Name)
+    $manifest = Get-ChildItem -Path $appExtract -Recurse -File |
+                Where-Object { $_.Name -ieq 'CanvasManifest.json' } | Select-Object -First 1
+    if ($manifest) {
+        try {
+            $mj = Get-Content -LiteralPath $manifest.FullName -Raw | ConvertFrom-Json
+            foreach ($prop in 'Name','DisplayName','AppName') {
+                if ($mj.PSObject.Properties.Name -contains $prop -and $mj.$prop) { $displayName = [string]$mj.$prop; break }
+            }
+            if ($mj.PSObject.Properties.Name -contains 'Properties' -and $mj.Properties) {
+                if ($mj.Properties.PSObject.Properties.Name -contains 'Name' -and $mj.Properties.Name) { $displayName = [string]$mj.Properties.Name }
+            }
+        } catch { }
+    }
+    # Sanitize for a folder name
+    $safeName = ($displayName -replace '[\\/:*?"<>|]', '_').Trim()
+    if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = [System.IO.Path]::GetFileNameWithoutExtension($chosen.Name) }
+
+    $appOut    = Join-Path $OutputRoot $safeName
+    $srcOut    = Join-Path $appOut 'src'
+    $analysisOut = Join-Path $appOut '.analysis'
+    foreach ($d in @($appOut, $srcOut, $analysisOut)) {
+        if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+    }
+
+    # --- Persist the source (lasting asset + citation targets) ----------------------
+    foreach ($f in $paFiles) {
+        # preserve any Component subfolder relative to \Src
+        $rel = $f.FullName.Substring($srcDir.FullName.Length).TrimStart('\','/')
+        $target = Join-Path $srcOut $rel
+        $tdir = Split-Path -Parent $target
+        if ($tdir -and -not (Test-Path $tdir)) { New-Item -ItemType Directory -Path $tdir -Force | Out-Null }
+        Copy-Item -LiteralPath $f.FullName -Destination $target -Force
+    }
+
+    # ============================================================================
+    # PARSE: build a flat list of property-formula records from each .pa.yaml.
+    # Each record = { screen, control, property, file, line, text }.
+    # Everything else (controls, vars, nav, refs, duplicates, leads) derives from it.
+    # ============================================================================
+    $formulas  = New-Object System.Collections.ArrayList   # property formula records
+    $controls  = New-Object System.Collections.ArrayList   # {name,type,screen,file,line}
+    $compFiles = @{}                                        # component file -> true
+
+    function Get-Indent { param([string] $Line) ($Line -replace '^( *).*$', '$1').Length }
+
+    foreach ($f in $paFiles) {
+        $isComponent = ($f.FullName -imatch '[\\/]Component[\\/]') -or ($f.Name -imatch 'Component')
+        $isApp = $f.Name -ieq 'App.pa.yaml'
+        # Logical "screen" label = file stem (docs: one [ScreenName].pa.yaml per screen).
+        $screenLabel = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) -replace '\.pa$',''
+        if ($isApp) { $screenLabel = 'App' }
+        $relPath = (Join-Path 'src' ($f.FullName.Substring($srcDir.FullName.Length).TrimStart('\','/'))) -replace '\\','/'
+        if ($isComponent) { $compFiles[$screenLabel] = $true }
+
+        $lines = Get-Content -LiteralPath $f.FullName
+        $n = $lines.Count
+
+        # Track the current control context via an indent stack of {indent,name}.
+        $stack = New-Object System.Collections.Stack
+        $curControl = $null
+
+        for ($i = 0; $i -lt $n; $i++) {
+            $line = $lines[$i]
+            if ($line -match '^\s*$') { continue }
+            $indent = Get-Indent $line
+            $trim = $line.Trim()
+
+            # Pop stack entries that are at >= current indent (we've left their scope)
+            while ($stack.Count -gt 0 -and $stack.Peek().Indent -ge $indent) { [void]$stack.Pop() }
+
+            # Control declaration: a node key whose next meaningful child is "Control:"
+            # Node key forms:  "- Name:"  or  "Name:"
+            if ($trim -match '^-?\s*([A-Za-z_][\w]*):\s*$') {
+                $key = $Matches[1]
+                # A node is a control only if its IMMEDIATE next deeper line is "Control:"
+                # (in pa.yaml v3 the Control: key is always a control's first child). Looking
+                # only at the first child avoids mistaking Screens/Children/screen names --
+                # whose deeper descendants include a Control: -- for controls.
+                $isCtrl = $false; $ctrlType = $null
+                for ($j = $i + 1; $j -lt $n; $j++) {
+                    if ($lines[$j] -match '^\s*$') { continue }
+                    $jIndent = Get-Indent $lines[$j]
+                    if ($jIndent -le $indent) { break }          # no deeper child at all
+                    if ($lines[$j].Trim() -match '^Control:\s*(.+)$') { $isCtrl = $true; $ctrlType = $Matches[1].Trim() }
+                    break                                         # only the first deeper line counts
+                }
+                $stack.Push([pscustomobject]@{ Indent = $indent; Name = $key })
+                if ($isCtrl) {
+                    $curControl = $key
+                    $typeShort = ($ctrlType -split '@')[0]
+                    [void]$controls.Add([pscustomobject]@{
+                        name = $key; type = $typeShort; screen = $screenLabel; file = $relPath; line = ($i + 1)
+                    })
+                }
+                continue
+            }
+
+            # Property with an inline formula ("Prop: =...") OR a block scalar
+            # ("Prop: |", "Prop: |-", "Prop: >", or "Prop:" then indented lines).
+            if ($trim -match '^([A-Za-z_][\w]*):\s*(.*)$') {
+                $propName = $Matches[1]
+                $remainder = $Matches[2].Trim()
+                if ($propName -in @('Control','Children','Properties','Components','Groups','Variant')) { continue }
+
+                $startLine = $i + 1
+                $text = $null
+                $isInline = ($remainder -like '=*')
+                $isBlock  = ($remainder -eq '' -or $remainder -match '^[|>][-+]?\d*$')
+                if (-not $isInline -and -not $isBlock) { continue }   # plain non-formula scalar
+                if ($isInline) {
+                    $text = $remainder
+                }
+                else {
+                    # block scalar: gather subsequent lines more-indented than the prop
+                    $sb = New-Object System.Text.StringBuilder
+                    for ($k = $i + 1; $k -lt $n; $k++) {
+                        if ($lines[$k] -match '^\s*$') { [void]$sb.AppendLine(''); continue }
+                        if ((Get-Indent $lines[$k]) -le $indent) { break }
+                        [void]$sb.AppendLine($lines[$k].Trim())
+                    }
+                    $text = $sb.ToString().Trim()
+                }
+                if (-not [string]::IsNullOrWhiteSpace($text)) {
+                    # Determine owning control: nearest control on the stack, else screen root
+                    $owner = $curControl
+                    if (-not $owner) { $owner = $screenLabel }
+                    [void]$formulas.Add([pscustomobject]@{
+                        screen = $screenLabel; control = $owner; property = $propName
+                        file = $relPath; line = $startLine; text = $text
+                    })
+                }
+            }
+        }
+    }
+
+    # All formula text concatenated for reference counting / token scans
+    $allText = ($formulas | ForEach-Object { $_.text }) -join "`n"
+
+    # ============================================================================
+    # DATA SOURCES + CONNECTIONS  (\DataSources\*.json, \Connections\*.json)
+    # ============================================================================
+    $dataSources = New-Object System.Collections.ArrayList
+    $dsDir = Get-ChildItem -Path $appExtract -Recurse -Directory | Where-Object { $_.Name -ieq 'DataSources' } | Select-Object -First 1
+    if ($dsDir) {
+        foreach ($dsf in Get-ChildItem -Path $dsDir.FullName -Recurse -File -Filter '*.json') {
+            $dsName = [System.IO.Path]::GetFileNameWithoutExtension($dsf.Name)
+            $typeRaw = ''
+            try {
+                $dj = Get-Content -LiteralPath $dsf.FullName -Raw | ConvertFrom-Json
+                foreach ($p in 'Type','ApiId','ServiceKind','DatasetName','TableName') {
+                    if ($dj.PSObject.Properties.Name -contains $p -and $dj.$p) { $typeRaw += ' ' + [string]$dj.$p }
+                }
+                $raw = (Get-Content -LiteralPath $dsf.FullName -Raw)
+                $typeRaw += ' ' + $raw
+            } catch { }
+            [void]$dataSources.Add([pscustomobject]@{
+                name = $dsName
+                connector = (Resolve-Connector $typeRaw)
+            })
+        }
+    }
+    # De-dup data sources by name
+    $dataSources = @($dataSources | Sort-Object name -Unique)
+
+    # ============================================================================
+    # VARIABLES, COLLECTIONS, NAVIGATION  (from formula text)
+    # ============================================================================
+    $globals = @{}   ; $contexts = @{} ; $collections = @{}
+    foreach ($fm in $formulas) {
+        foreach ($m in [regex]::Matches($fm.text, '(?i)\bSet\s*\(\s*([A-Za-z_][\w]*)')) { $globals[$m.Groups[1].Value] = $fm.file }
+        foreach ($m in [regex]::Matches($fm.text, '(?i)\bUpdateContext\s*\(\s*\{\s*([A-Za-z_][\w]*)')) { $contexts[$m.Groups[1].Value] = $fm.file }
+        foreach ($m in [regex]::Matches($fm.text, '(?i)\b(?:Clear)?Collect\s*\(\s*([A-Za-z_][\w]*)')) { $collections[$m.Groups[1].Value] = $fm.file }
+    }
+
+    function Count-Refs {
+        param([string] $Name)
+        ([regex]::Matches($allText, '(?<![\w.])' + [regex]::Escape($Name) + '\b')).Count
+    }
+
+    $variables = New-Object System.Collections.ArrayList
+    foreach ($g in $globals.Keys) {
+        $assign = ([regex]::Matches($allText, '(?i)\bSet\s*\(\s*' + [regex]::Escape($g) + '\b')).Count
+        $total  = Count-Refs $g
+        [void]$variables.Add([pscustomobject]@{ name=$g; scope='global'; definedIn=$globals[$g]; referenced=($total - $assign) })
+    }
+    foreach ($c in $contexts.Keys) {
+        $assign = ([regex]::Matches($allText, '(?i)\bUpdateContext\s*\(\s*\{\s*' + [regex]::Escape($c) + '\b')).Count
+        $total  = Count-Refs $c
+        [void]$variables.Add([pscustomobject]@{ name=$c; scope='context'; definedIn=$contexts[$c]; referenced=($total - $assign) })
+    }
+    $collectionList = New-Object System.Collections.ArrayList
+    foreach ($cl in $collections.Keys) {
+        $assign = ([regex]::Matches($allText, '(?i)\b(?:Clear)?Collect\s*\(\s*' + [regex]::Escape($cl) + '\b')).Count
+        $total  = Count-Refs $cl
+        [void]$collectionList.Add([pscustomobject]@{ name=$cl; definedIn=$collections[$cl]; referenced=($total - $assign) })
+    }
+
+    # Navigation edges (from Navigate / Back)
+    $navigation = New-Object System.Collections.ArrayList
+    foreach ($fm in $formulas) {
+        foreach ($m in [regex]::Matches($fm.text, '(?i)\bNavigate\s*\(\s*([A-Za-z_][\w]*)')) {
+            [void]$navigation.Add([pscustomobject]@{ from=$fm.screen; to=$m.Groups[1].Value; via='Navigate' })
+        }
+        if ($fm.text -imatch '\bBack\s*\(') {
+            [void]$navigation.Add([pscustomobject]@{ from=$fm.screen; to='(previous)'; via='Back' })
+        }
+    }
+
+    # Start screen (App.StartScreen if declared)
+    $startScreen = $null
+    $ssRec = $formulas | Where-Object { $_.screen -eq 'App' -and $_.property -ieq 'StartScreen' } | Select-Object -First 1
+    if ($ssRec) { $startScreen = ($ssRec.text -replace '^=','').Trim() }
+
+    # Screen list (files that are neither App nor Component)
+    $screenNames = @($paFiles |
+        ForEach-Object { [System.IO.Path]::GetFileNameWithoutExtension($_.Name) -replace '\.pa$','' } |
+        Where-Object { $_ -ne 'App' -and -not $compFiles.ContainsKey($_) } | Sort-Object -Unique)
+
+    # Per-screen weight + trigger flags (drives the model's targeted reads)
+    $screenInfo = New-Object System.Collections.ArrayList
+    foreach ($sn in $screenNames) {
+        $sf = $formulas | Where-Object { $_.screen -eq $sn }
+        $sText = ($sf | ForEach-Object { $_.text }) -join "`n"
+        $ctrlCount = @($controls | Where-Object { $_.screen -eq $sn }).Count
+        $relFile = ($paFiles | Where-Object { ([System.IO.Path]::GetFileNameWithoutExtension($_.Name) -replace '\.pa$','') -eq $sn } | Select-Object -First 1)
+        $relFilePath = if ($relFile) { ('src/' + $relFile.FullName.Substring($srcDir.FullName.Length).TrimStart('\','/')) -replace '\\','/' } else { $null }
+        [void]$screenInfo.Add([pscustomobject]@{
+            name = $sn
+            file = $relFilePath
+            controlCount = $ctrlCount
+            formulaBytes = [System.Text.Encoding]::UTF8.GetByteCount($sText)
+            triggers = [pscustomobject]@{
+                delegation     = [bool]($sText -imatch '\b(Filter|LookUp|Search|Sort|SortByColumns|Sum|Average|Min|Max|CountRows|CountIf)\s*\(')
+                nPlusOne       = [bool]($sText -imatch '(?i)\bForAll\s*\(' -or $sText -imatch '(?i)Gallery')
+                errorHandling  = [bool]($sText -imatch '(?i)\b(Patch|Collect|Remove|RemoveIf|UpdateIf|SubmitForm)\s*\(')
+                deepNesting    = [bool]($sf | Where-Object { $_.text.Length -gt 500 })
+            }
+        })
+    }
+
+    # ============================================================================
+    # DETERMINISTIC FINDINGS
+    # ============================================================================
+    $det = New-Object System.Collections.ArrayList
+
+    # --- Default control names (Confirmed) ---
+    foreach ($c in $controls) {
+        if ($c.name -match $defaultNameRegex) {
+            [void]$det.Add([pscustomobject]@{
+                category='Maintainability & naming'; type='default-control-name'
+                severity='Medium'; confidence='Confirmed'
+                location=@{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line }
+                evidence="$($c.name) ($($c.type))"
+                message="Control '$($c.name)' uses a default auto-generated name. Rename with a 3-char type prefix + purpose, e.g. '$( ($c.type.Substring(0,[Math]::Min(3,$c.type.Length))).ToLower() )Purpose'."
+            })
+        }
+    }
+    # --- Default screen names (Confirmed) ---
+    foreach ($sn in $screenNames) {
+        if ($sn -match '^(Screen)?_?\d+$' -or $sn -match '^Screen\d+$') {
+            $rf = ($screenInfo | Where-Object { $_.name -eq $sn } | Select-Object -First 1)
+            [void]$det.Add([pscustomobject]@{
+                category='Maintainability & naming'; type='default-screen-name'
+                severity='Medium'; confidence='Confirmed'
+                location=@{ screen=$sn; control=$null; property=$null; file=($rf.file); line=1 }
+                evidence=$sn
+                message="Screen '$sn' uses a default name. Rename to plain language ending in 'Screen' (e.g. 'OrderDetailsScreen')."
+            })
+        }
+    }
+    # --- Variable / collection prefix violations (Confirmed, Low) ---
+    foreach ($v in $variables) {
+        $ok = if ($v.scope -eq 'global') { $v.name -clike 'gbl*' } else { $v.name -clike 'loc*' }
+        if (-not $ok) {
+            $want = if ($v.scope -eq 'global') { 'gbl' } else { 'loc' }
+            [void]$det.Add([pscustomobject]@{
+                category='Maintainability & naming'; type='variable-prefix'
+                severity='Low'; confidence='Confirmed'
+                location=@{ screen=$null; control=$null; property=$null; file=$v.definedIn; line=$null }
+                evidence="$($v.scope) variable '$($v.name)'"
+                message="$($v.scope) variable '$($v.name)' lacks the '$want' prefix convention."
+            })
+        }
+    }
+    foreach ($cl in $collectionList) {
+        if (-not ($cl.name -clike 'col*')) {
+            [void]$det.Add([pscustomobject]@{
+                category='Maintainability & naming'; type='collection-prefix'
+                severity='Low'; confidence='Confirmed'
+                location=@{ screen=$null; control=$null; property=$null; file=$cl.definedIn; line=$null }
+                evidence="collection '$($cl.name)'"
+                message="Collection '$($cl.name)' lacks the 'col' prefix convention."
+            })
+        }
+    }
+
+    # --- Dead / unused (Confirmed for data; Potential for controls = layout judgment) ---
+    foreach ($v in $variables) {
+        if ($v.referenced -le 0) {
+            [void]$det.Add([pscustomobject]@{
+                category='Dead / unused'; type='unused-variable'
+                severity='Low'; confidence='Confirmed'
+                location=@{ screen=$null; control=$null; property=$null; file=$v.definedIn; line=$null }
+                evidence="$($v.scope) variable '$($v.name)'"
+                message="$($v.scope) variable '$($v.name)' is set but never read. Remove it or wire it up."
+            })
+        }
+    }
+    foreach ($cl in $collectionList) {
+        if ($cl.referenced -le 0) {
+            [void]$det.Add([pscustomobject]@{
+                category='Dead / unused'; type='unused-collection'
+                severity='Low'; confidence='Confirmed'
+                location=@{ screen=$null; control=$null; property=$null; file=$cl.definedIn; line=$null }
+                evidence="collection '$($cl.name)'"
+                message="Collection '$($cl.name)' is built but never referenced. Remove the Collect/ClearCollect or use it."
+            })
+        }
+    }
+    foreach ($ds in $dataSources) {
+        if ((Count-Refs $ds.name) -le 0) {
+            [void]$det.Add([pscustomobject]@{
+                category='Dead / unused'; type='unused-datasource'
+                severity='Low'; confidence='Confirmed'
+                location=@{ screen=$null; control=$null; property=$null; file='\DataSources'; line=$null }
+                evidence="data source '$($ds.name)' ($($ds.connector))"
+                message="Data source '$($ds.name)' is connected but never referenced in any formula. Remove the connection to shrink the app."
+            })
+        }
+    }
+    # Orphan screens: never a Navigate target and not the start screen
+    $navTargets = @($navigation | Where-Object { $_.via -eq 'Navigate' } | ForEach-Object { $_.to } | Sort-Object -Unique)
+    foreach ($sn in $screenNames) {
+        $isTarget = $navTargets -contains $sn
+        $isStart  = ($startScreen -and ($startScreen -imatch ('\b' + [regex]::Escape($sn) + '\b')))
+        if (-not $isTarget -and -not $isStart) {
+            $rf = ($screenInfo | Where-Object { $_.name -eq $sn } | Select-Object -First 1)
+            [void]$det.Add([pscustomobject]@{
+                category='Dead / unused'; type='orphan-screen'
+                severity='Medium'; confidence='Potential'
+                location=@{ screen=$sn; control=$null; property=$null; file=($rf.file); line=1 }
+                evidence="screen '$sn'"
+                message="Screen '$sn' is never targeted by a Navigate() and is not the start screen. It may be an orphan (verify it isn't the default first screen or reached via a variable)."
+            })
+        }
+    }
+    # Unreferenced controls (Potential - pure-layout controls are legitimately unreferenced)
+    foreach ($c in $controls) {
+        if ($c.type -imatch 'Screen') { continue }
+        $refs = ([regex]::Matches($allText, '(?<![\w.])' + [regex]::Escape($c.name) + '(?:\.|\b)')).Count
+        if ($refs -le 0) {
+            [void]$det.Add([pscustomobject]@{
+                category='Dead / unused'; type='unreferenced-control'
+                severity='Low'; confidence='Potential'
+                location=@{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line }
+                evidence="$($c.name) ($($c.type))"
+                message="Control '$($c.name)' is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
+            })
+        }
+    }
+
+    # --- Exact duplicate formulas (Confirmed, Redundancy) ---
+    $byNorm = @{}
+    foreach ($fm in $formulas) {
+        $norm = ($fm.text -replace '\s+',' ').Trim()
+        if ($norm.Length -lt 40) { continue }              # ignore trivial formulas
+        if ($norm -imatch '^=?(true|false|parent\.|self\.|rgba|color\.)') { continue }
+        if (-not $byNorm.ContainsKey($norm)) { $byNorm[$norm] = New-Object System.Collections.ArrayList }
+        [void]$byNorm[$norm].Add($fm)
+    }
+    foreach ($k in $byNorm.Keys) {
+        $grp = $byNorm[$k]
+        if ($grp.Count -ge 2) {
+            $locs = @($grp | ForEach-Object { "$($_.screen)->$($_.control).$($_.property) ($($_.file):$($_.line))" })
+            $first = $grp[0]
+            $snip = if ($first.text.Length -gt 240) { $first.text.Substring(0,240) + ' ...' } else { $first.text }
+            [void]$det.Add([pscustomobject]@{
+                category='Redundancy & reuse'; type='exact-duplicate-formula'
+                severity='Medium'; confidence='Confirmed'
+                location=@{ screen=$first.screen; control=$first.control; property=$first.property; file=$first.file; line=$first.line }
+                evidence=$snip
+                message=("Identical formula repeated $($grp.Count) times: " + ($locs -join '; ') + ". Extract to a named formula (App.Formulas), a component, or a With() subexpression.")
+            })
+        }
+    }
+
+    # ============================================================================
+    # JUDGMENT LEADS (the model confirms/rejects using the bundled references)
+    # ============================================================================
+    $leads = New-Object System.Collections.ArrayList
+    $serverSourceNames = @($dataSources | Where-Object { $_.connector -in @('SharePoint','SQL Server','Dataverse','Excel') } | ForEach-Object { $_.name })
+
+    foreach ($fm in $formulas) {
+        $t = $fm.text
+        $snip = if ($t.Length -gt 200) { $t.Substring(0,200) + ' ...' } else { $t }
+
+        # Delegation candidates: a delegable-or-not function whose 1st arg is a server source
+        foreach ($m in [regex]::Matches($t, '(?i)\b(Filter|LookUp|Search|Sort|SortByColumns|Sum|Average|Min|Max|CountRows|CountIf|FirstN|LastN|Last|Choices|Concat|GroupBy|Ungroup)\s*\(\s*([A-Za-z_][\w]*)')) {
+            $fn = $m.Groups[1].Value; $arg = $m.Groups[2].Value
+            $isServer = $serverSourceNames -contains $arg
+            $isCollection = $collections.ContainsKey($arg)
+            if ($isCollection) { continue }   # collections need no delegation - avoid false positives
+            $srcHint = if ($isServer) { "First arg '$arg' resolves to a server data source." } else { "First arg '$arg' - resolve its type from \DataSources before flagging (skip if it is a collection/variable/static Excel)." }
+            $always = ($alwaysLocalFns -contains $fn)
+            $kind = if ($always) { 'non-delegable-always-local' } else { 'delegation-candidate' }
+            $alwaysHint = if ($always) { " '$fn' is non-delegable on every connector." } else { '' }
+            $delHint = "$fn on '$arg'. $srcHint Check delegation.md for the connector matrix. ALWAYS tag delegation findings 'Potential - verify row count'." + $alwaysHint
+            [void]$leads.Add([pscustomobject]@{
+                category='Delegation & data efficiency'; kind=$kind
+                screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
+                snippet=$snip
+                hint=$delHint
+            })
+        }
+
+        # Performance: heavy App.OnStart
+        if ($fm.screen -eq 'App' -and $fm.property -ieq 'OnStart') {
+            $setN = ([regex]::Matches($t,'(?i)\bSet\s*\(')).Count
+            $colN = ([regex]::Matches($t,'(?i)\b(?:Clear)?Collect\s*\(')).Count
+            [void]$leads.Add([pscustomobject]@{
+                category='Performance'; kind='heavy-onstart'
+                screen='App'; control='App'; property='OnStart'; file=$fm.file; line=$fm.line
+                snippet=$snip
+                hint="App.OnStart contains $setN Set() and $colN Collect() calls. Static initializations belong in App.Formulas (named formulas, ~80% load win). Keep Set only for state that changes. See coding-standards-and-performance.md."
+            })
+            if ($t -imatch '(?i)\bNavigate\s*\(') {
+                [void]$leads.Add([pscustomobject]@{
+                    category='Performance'; kind='navigate-in-onstart'
+                    screen='App'; control='App'; property='OnStart'; file=$fm.file; line=$fm.line
+                    snippet=$snip
+                    hint="Navigate() inside App.OnStart blocks first render until OnStart finishes. Replace with declarative App.StartScreen. (Confirmed pattern.)"
+                })
+            }
+        }
+
+        # Performance: sequential independent data calls -> Concurrent opportunity
+        if ($fm.property -imatch '(OnStart|OnVisible|OnSelect)') {
+            $ccN = ([regex]::Matches($t,'(?i)\b(?:Clear)?Collect\s*\(')).Count
+            if ($ccN -ge 2 -and $t -notmatch '(?i)\bConcurrent\s*\(') {
+                [void]$leads.Add([pscustomobject]@{
+                    category='Performance'; kind='concurrent-opportunity'
+                    screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
+                    snippet=$snip
+                    hint="$ccN sequential Collect/ClearCollect calls. If independent, wrap in Concurrent() to wait only for the longest. Caveat: only when calls don't depend on each other."
+                })
+            }
+        }
+
+        # Performance: N+1 - data call inside ForAll
+        foreach ($m in [regex]::Matches($t, '(?i)\bForAll\s*\(')) {
+            if ($t -imatch '(?i)\b(LookUp|Filter|Search)\s*\(') {
+                [void]$leads.Add([pscustomobject]@{
+                    category='Performance'; kind='n-plus-1'
+                    screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
+                    snippet=$snip
+                    hint="A LookUp/Filter/Search appears inside ForAll - potential per-row (N+1) network calls. Batch with a single Collect up front, or reshape at the source. (Potential - high impact.)"
+                })
+            }
+        }
+
+        # Error handling: mutation without IfError / Errors() in the same formula
+        if ($t -imatch '(?i)\b(Patch|Collect|Remove|RemoveIf|UpdateIf|SubmitForm)\s*\(' -and $t -notmatch '(?i)\b(IfError|Errors)\s*\(') {
+            [void]$leads.Add([pscustomobject]@{
+                category='Error handling & resilience'; kind='unhandled-mutation'
+                screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
+                snippet=$snip
+                hint="A data mutation (Patch/Collect/Remove/SubmitForm) with no IfError() wrapper or Errors() check nearby. Recommend user-facing error handling. (Potential - some operations are low-risk; judge.)"
+            })
+        }
+    }
+
+    # ============================================================================
+    # EMIT: index.json, mechanical-findings.json, index.md, status.json
+    # ============================================================================
+    $index = [ordered]@{
+        app = [ordered]@{ name=$displayName; folder=$safeName; msapp=$chosen.Name; srcPath='src' }
+        counts = [ordered]@{
+            screens=$screenNames.Count; controls=$controls.Count; dataSources=$dataSources.Count
+            variables=$variables.Count; collections=$collectionList.Count
+        }
+        startScreen = $startScreen
+        screens = @($screenInfo)
+        controls = @($controls | ForEach-Object { [ordered]@{ name=$_.name; type=$_.type; screen=$_.screen; isDefaultName=([bool]($_.name -match $defaultNameRegex)) } })
+        dataSources = @($dataSources | ForEach-Object { [ordered]@{ name=$_.name; connector=$_.connector } })
+        collections = @($collectionList)
+        variables = @($variables)
+        navigation = @($navigation | Sort-Object from,to,via -Unique)
+        components = @($compFiles.Keys)
+    }
+    ($index | ConvertTo-Json -Depth 12) | Out-File -FilePath (Join-Path $analysisOut 'index.json') -Encoding utf8
+
+    $mech = [ordered]@{
+        deterministicFindings = @($det)
+        leads = @($leads)
+    }
+    ($mech | ConvertTo-Json -Depth 12) | Out-File -FilePath (Join-Path $analysisOut 'mechanical-findings.json') -Encoding utf8
+
+    # --- index.md digest (human-browsable) ---
+    $md = New-Object System.Text.StringBuilder
+    [void]$md.AppendLine("# Index - $displayName")
+    [void]$md.AppendLine("")
+    [void]$md.AppendLine("Source app: ``$($chosen.Name)``  -  Persisted source: ``src/``")
+    [void]$md.AppendLine("")
+    [void]$md.AppendLine("| Metric | Count |")
+    [void]$md.AppendLine("| --- | --- |")
+    [void]$md.AppendLine("| Screens | $($screenNames.Count) |")
+    [void]$md.AppendLine("| Controls | $($controls.Count) |")
+    [void]$md.AppendLine("| Data sources | $($dataSources.Count) |")
+    [void]$md.AppendLine("| Variables | $($variables.Count) |")
+    [void]$md.AppendLine("| Collections | $($collectionList.Count) |")
+    [void]$md.AppendLine("| Deterministic findings | $($det.Count) |")
+    [void]$md.AppendLine("| Judgment leads | $($leads.Count) |")
+    [void]$md.AppendLine("")
+    [void]$md.AppendLine("## Screens (by weight - read the heaviest/flagged first)")
+    [void]$md.AppendLine("")
+    [void]$md.AppendLine("| Screen | Controls | Formula bytes | Triggers |")
+    [void]$md.AppendLine("| --- | --- | --- | --- |")
+    foreach ($s in ($screenInfo | Sort-Object formulaBytes -Descending)) {
+        $tr = @()
+        if ($s.triggers.delegation) { $tr += 'delegation' }
+        if ($s.triggers.nPlusOne) { $tr += 'n+1?' }
+        if ($s.triggers.errorHandling) { $tr += 'mutations' }
+        if ($s.triggers.deepNesting) { $tr += 'long-formulas' }
+        [void]$md.AppendLine("| $($s.name) | $($s.controlCount) | $($s.formulaBytes) | $($tr -join ', ') |")
+    }
+    [void]$md.AppendLine("")
+    [void]$md.AppendLine("## Data sources")
+    [void]$md.AppendLine("")
+    if ($dataSources.Count -eq 0) { [void]$md.AppendLine("_None declared._") }
+    else { foreach ($d in $dataSources) { [void]$md.AppendLine("- **$($d.name)** - $($d.connector)") } }
+    [void]$md.AppendLine("")
+    [void]$md.AppendLine("## Navigation map")
+    [void]$md.AppendLine("")
+    $navUnique = @($navigation | Where-Object { $_.via -eq 'Navigate' } | Sort-Object from,to -Unique)
+    if ($navUnique.Count -eq 0) { [void]$md.AppendLine("_No Navigate() calls found._") }
+    else { foreach ($e in $navUnique) { [void]$md.AppendLine("- $($e.from) -> $($e.to)") } }
+    if ($startScreen) { [void]$md.AppendLine(""); [void]$md.AppendLine("Start screen: ``$startScreen``") }
+    $md.ToString() | Out-File -FilePath (Join-Path $analysisOut 'index.md') -Encoding utf8
+
+    # --- status (stdout + file) ---
+    $status = @{
+        status = 'ok'
+        message = "Analysis inputs ready for '$displayName'. Read .analysis/index.json then author the report."
+        app = $displayName
+        appFolder = $safeName
+        outputDir = (Resolve-Path $appOut).Path
+        files = @{
+            index = '.analysis/index.json'
+            digest = '.analysis/index.md'
+            mechanicalFindings = '.analysis/mechanical-findings.json'
+            src = 'src'
+            report = "$safeName.analysis.md"
+        }
+        counts = @{
+            screens=$screenNames.Count; controls=$controls.Count; dataSources=$dataSources.Count
+            deterministicFindings=$det.Count; leads=$leads.Count
+        }
+    }
+    Write-Status -StatusFilePath (Join-Path $analysisOut 'status.json') -Obj $status
+    exit 0
+}
+catch {
+    Write-Status -Obj @{ status='error'; message=("Analyzer failed: " + $_.Exception.Message); detail=($_.ScriptStackTrace) }
+    exit 0
+}
+finally {
+    if ($work -and (Test-Path $work)) { Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue }
+}

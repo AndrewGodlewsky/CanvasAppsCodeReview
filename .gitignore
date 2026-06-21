@@ -1,0 +1,13 @@
+# Runtime analysis output produced by the skill (regenerable; not source)
+canvas-analysis/
+**/canvas-analysis/
+
+# Test scratch staging
+test/_stage/
+
+# Local editor / agent settings
+.claude/
+
+# OS / misc
+Thumbs.db
+.DS_Store

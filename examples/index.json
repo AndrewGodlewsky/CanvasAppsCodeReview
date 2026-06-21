@@ -1,0 +1,159 @@
+﻿{
+    "app":  {
+                "name":  "FieldServiceApp",
+                "folder":  "FieldServiceApp",
+                "msapp":  "FieldServiceApp.msapp",
+                "srcPath":  "src"
+            },
+    "counts":  {
+                   "screens":  3,
+                   "controls":  7,
+                   "dataSources":  3,
+                   "variables":  3,
+                   "collections":  2
+               },
+    "startScreen":  "HomeScreen",
+    "screens":  [
+                    {
+                        "name":  "DetailScreen",
+                        "file":  "src/DetailScreen.pa.yaml",
+                        "controlCount":  3,
+                        "formulaBytes":  189,
+                        "triggers":  {
+                                         "delegation":  true,
+                                         "nPlusOne":  true,
+                                         "errorHandling":  true,
+                                         "deepNesting":  false
+                                     }
+                    },
+                    {
+                        "name":  "HomeScreen",
+                        "file":  "src/HomeScreen.pa.yaml",
+                        "controlCount":  3,
+                        "formulaBytes":  207,
+                        "triggers":  {
+                                         "delegation":  true,
+                                         "nPlusOne":  false,
+                                         "errorHandling":  false,
+                                         "deepNesting":  false
+                                     }
+                    },
+                    {
+                        "name":  "OrphanScreen",
+                        "file":  "src/OrphanScreen.pa.yaml",
+                        "controlCount":  1,
+                        "formulaBytes":  24,
+                        "triggers":  {
+                                         "delegation":  false,
+                                         "nPlusOne":  false,
+                                         "errorHandling":  false,
+                                         "deepNesting":  false
+                                     }
+                    }
+                ],
+    "controls":  [
+                     {
+                         "name":  "Gallery1",
+                         "type":  "Gallery",
+                         "screen":  "DetailScreen",
+                         "isDefaultName":  true
+                     },
+                     {
+                         "name":  "btnSave",
+                         "type":  "Classic/Button",
+                         "screen":  "DetailScreen",
+                         "isDefaultName":  false
+                     },
+                     {
+                         "name":  "lblSame",
+                         "type":  "Label",
+                         "screen":  "DetailScreen",
+                         "isDefaultName":  false
+                     },
+                     {
+                         "name":  "galOrders",
+                         "type":  "Gallery",
+                         "screen":  "HomeScreen",
+                         "isDefaultName":  false
+                     },
+                     {
+                         "name":  "Button2",
+                         "type":  "Classic/Button",
+                         "screen":  "HomeScreen",
+                         "isDefaultName":  true
+                     },
+                     {
+                         "name":  "lblWelcome",
+                         "type":  "Label",
+                         "screen":  "HomeScreen",
+                         "isDefaultName":  false
+                     },
+                     {
+                         "name":  "lblOrphan",
+                         "type":  "Label",
+                         "screen":  "OrphanScreen",
+                         "isDefaultName":  false
+                     }
+                 ],
+    "dataSources":  [
+                        {
+                            "name":  "Archive",
+                            "connector":  "SharePoint"
+                        },
+                        {
+                            "name":  "Customers",
+                            "connector":  "SharePoint"
+                        },
+                        {
+                            "name":  "Orders",
+                            "connector":  "SharePoint"
+                        }
+                    ],
+    "collections":  [
+                        {
+                            "name":  "colCustomers",
+                            "definedIn":  "src/App.pa.yaml",
+                            "referenced":  0
+                        },
+                        {
+                            "name":  "colOrders",
+                            "definedIn":  "src/App.pa.yaml",
+                            "referenced":  2
+                        }
+                    ],
+    "variables":  [
+                      {
+                          "name":  "gblCount",
+                          "scope":  "global",
+                          "definedIn":  "src/HomeScreen.pa.yaml",
+                          "referenced":  0
+                      },
+                      {
+                          "name":  "gblUser",
+                          "scope":  "global",
+                          "definedIn":  "src/App.pa.yaml",
+                          "referenced":  2
+                      },
+                      {
+                          "name":  "unusedVar",
+                          "scope":  "global",
+                          "definedIn":  "src/App.pa.yaml",
+                          "referenced":  0
+                      }
+                  ],
+    "navigation":  [
+                       {
+                           "from":  "App",
+                           "to":  "HomeScreen",
+                           "via":  "Navigate"
+                       },
+                       {
+                           "from":  "HomeScreen",
+                           "to":  "DetailScreen",
+                           "via":  "Navigate"
+                       }
+                   ],
+    "components":  [
+
+                   ]
+}
