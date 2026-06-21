@@ -29,6 +29,41 @@ skills/
 See [`skills/canvas-app-analyzer/README.md`](./skills/canvas-app-analyzer/README.md) for the
 complete guide.
 
+## For agents (programmatic install - no GUI)
+
+If you are an AI coding agent installing this for a user, the VS Code Command Palette flow described
+under [Install](#install-one-action---from-this-git-url) is GUI-only and not available to you. Use
+one of these shell-executable methods instead.
+
+**Option A - GitHub Copilot CLI (one command):**
+
+```bash
+copilot plugin install AndrewGodlewsky/CanvasAppsCodeReview
+```
+
+Installs the whole plugin (the `canvas-app-analyzer` skill) from the repo's default branch.
+
+**Option B - copy the skill folder (universal; only needs git + a filesystem):**
+
+```bash
+git clone https://github.com/AndrewGodlewsky/CanvasAppsCodeReview.git /tmp/caar
+mkdir -p .github/skills                                   # per-repo; or ~/.copilot/skills for user-wide
+cp -r /tmp/caar/skills/canvas-app-analyzer .github/skills/
+```
+
+Windows PowerShell equivalent of the copy step:
+
+```powershell
+git clone https://github.com/AndrewGodlewsky/CanvasAppsCodeReview.git $env:TEMP\caar
+New-Item -ItemType Directory -Force .github\skills | Out-Null
+Copy-Item -Recurse $env:TEMP\caar\skills\canvas-app-analyzer .github\skills\
+```
+
+Copilot auto-discovers any skill folder under those locations. In an active session, run
+`/skills reload`, then confirm with `/skills info canvas-app-analyzer`. Keep the folder named
+`canvas-app-analyzer` - it must match the `name:` in its `SKILL.md`, or the skill silently fails to
+load.
+
 ## How it works (hybrid: script does mechanics, model does judgment)
 
 A PowerShell helper does the deterministic, reproducible work - unzip the solution, recursively find
