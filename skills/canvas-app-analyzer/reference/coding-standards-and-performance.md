@@ -147,6 +147,20 @@ Abbreviation table (from docs):
 - `With` creates self-contained, scoped named values to break up complex formulas — preferred over
   context/global variables when a value is only needed locally. Recommend for deeply nested expressions.
 
+### Deep If/Switch nesting (`DI`, Medium, Confirmed)
+- Deeply nested `If`/`Switch` calls (e.g. `If(A, x, If(B, y, If(C, z, If(D, w, v))))`) are a
+  readability and maintainability finding. Each additional nesting level forces the reader to hold
+  more mental context simultaneously and makes future edits error-prone.
+- **Flag (`DI`, Medium, Confirmed, tier: narrative):** any formula whose maximum `If`/`Switch`
+  nesting depth in its **code span** (string-literal content excluded) meets or exceeds the
+  `$T_DeepIfDepth` threshold (default 4). Power Fx allows optional whitespace between the keyword
+  and `(`, so both `If(` and `If (` are counted.
+- **Fix:** break the nested chain into a `With` scoped expression, a `Switch` on a shared
+  condition, or named formulas (`App.Formulas`) that name each sub-result — whichever best
+  communicates intent. Each named value can carry a comment explaining its role.
+- Source: §2 "With function" (Maintainability/Redundancy) above +
+  https://learn.microsoft.com/power-apps/maker/canvas-apps/efficient-calculations
+
 ### Other performance levers (lower-frequency)
 - **Explicit Column Selection** (on by default for new apps) + "only fetch needed columns" — pulling wide
   tables with unused columns is a payload finding.

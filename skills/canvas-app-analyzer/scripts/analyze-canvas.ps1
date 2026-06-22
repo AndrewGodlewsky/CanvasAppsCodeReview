@@ -1238,6 +1238,31 @@ try {
         }
     }
 
+    # --- Deep If/Switch nesting (DI) - Medium, narrative, Confirmed ---
+    # A formula whose maximum If/Switch nesting depth in its CODE span meets or exceeds
+    # $T_DeepIfDepth is flagged.  Deeply nested conditionals hurt readability and are
+    # better expressed with With() scoped values, Switch, or App.Formulas named formulas.
+    # Reuses Get-MaxIfDepth (added in Task 18) — no duplicate depth logic.
+    # Citation: coding-standards-and-performance.md §2 "With function" +
+    #   efficient-calculations: https://learn.microsoft.com/power-apps/maker/canvas-apps/efficient-calculations
+    $diCitation = 'coding-standards-and-performance.md section 2 (With function / Deep If/Switch nesting) - https://learn.microsoft.com/power-apps/maker/canvas-apps/efficient-calculations'
+    foreach ($fm in $formulas) {
+        $spans    = Split-FormulaSpans $fm.text
+        $codeText = $spans.Code
+        $ifDepth  = Get-MaxIfDepth $codeText
+        if ($ifDepth -lt $T_DeepIfDepth) { continue }
+        $snipLen    = [Math]::Min(120, $fm.text.Length)
+        $snipSuffix = if ($fm.text.Length -gt $snipLen) { ' ...' } else { '' }
+        $snip       = $fm.text.Substring(0, $snipLen) + $snipSuffix
+        [void]$det.Add((New-Finding -Prefix 'DI' -Type 'deep-if-nesting' `
+            -Category 'Maintainability & naming' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+            -Citation $diCitation `
+            -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
+            -Evidence "$($fm.control).$($fm.property): If/Switch nesting depth $ifDepth (threshold: $T_DeepIfDepth)" `
+            -Message "Formula '$($fm.control).$($fm.property)' has If/Switch nesting depth $ifDepth (threshold: $T_DeepIfDepth). Break the nested chain into a With() scoped expression, a Switch on a shared condition, or named formulas (App.Formulas) to improve readability and maintainability." `
+            -SortKey "$($fm.file)|$($fm.line)|$($fm.control).$($fm.property)"))
+    }
+
     # ============================================================================
     # JUDGMENT LEADS (the model confirms/rejects using the bundled references)
     # ============================================================================
