@@ -257,6 +257,14 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =If(gblZebra > 0, "SharedConstantToken_RL", "other")
+            - lblEnvHard:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =Concatenate("https://contoso.sharepoint.test/sites/ProdSite", " | ", "12345678-1234-1234-1234-1234567890ab")
+            - lblEnvOk:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="just/a/relative/path and plain text"
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

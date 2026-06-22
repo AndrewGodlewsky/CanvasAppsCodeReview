@@ -1506,6 +1506,48 @@ try {
             -SortKey "RL|$v"))
     }
 
+    # --- Environment-specific hardcoding (EV) - High, narrative, Confirmed ---
+    # Flags string literals that embed environment-specific values: absolute URLs, GUIDs,
+    # SharePoint/Dynamics hostnames. These silently break when the app is deployed to another
+    # environment. Each occurrence gets its own EV finding (one per env-specific string, per location).
+    # Note: EV and MV both fire on the same URL string — intentional (different lenses/severity).
+    # Citation: coding-standards-and-performance.md §6 (Environment-specific values) —
+    #   use Power Apps environment variables instead of hardcoded URLs/GUIDs/hostnames:
+    #   https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables
+    $evCitation = 'coding-standards-and-performance.md section 6 (Environment-specific values / High) - replace hardcoded URLs, GUIDs, and hostnames with Power Apps environment variables: https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables'
+
+    $evPatterns = @(
+        [regex]::new('https?://', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase),
+        [regex]::new('[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'),
+        [regex]::new('\.sharepoint\.(com|test)', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase),
+        [regex]::new('\.crm\d*\.dynamics\.com', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    )
+
+    $evOrd = 0
+    # Process only string-kind entries from $magicLiterals (env-specific patterns are string values)
+    foreach ($lit in ($magicLiterals | Where-Object { $_.kind -eq 'string' })) {
+        $isEnvSpecific = $false
+        $matchedReason = ''
+        foreach ($pat in $evPatterns) {
+            if ($pat.IsMatch($lit.value)) {
+                $isEnvSpecific = $true
+                $matchedReason = $pat.ToString()
+                break
+            }
+        }
+        if (-not $isEnvSpecific) { continue }
+
+        $evOrd++
+        $msg = "Environment-specific string literal '$($lit.value)' hardcoded in $($lit.control).$($lit.property). This value will silently break when the app is deployed to another environment. Replace it with a Power Apps environment variable."
+        [void]$det.Add((New-Finding -Prefix 'EV' -Type 'env-specific-hardcoding' `
+            -Category 'Maintainability & naming' -Severity 'High' -Confidence 'Confirmed' -Tier 'narrative' `
+            -Citation $evCitation `
+            -Location @{ screen=$lit.screen; control=$lit.control; property=$lit.property; file=$lit.file; line=$lit.line } `
+            -Evidence $lit.value `
+            -Message $msg `
+            -SortKey ("{0}|{1}|{2}.{3}|{4}|{5:D5}" -f $lit.file,$lit.line,$lit.control,$lit.property,$lit.value,$evOrd)))
+    }
+
     # ============================================================================
     # JUDGMENT LEADS (the model confirms/rejects using the bundled references)
     # ============================================================================

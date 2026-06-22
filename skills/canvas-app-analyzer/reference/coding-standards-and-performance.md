@@ -225,7 +225,38 @@ Flag (via reference counting across all `.pa.yaml`):
   - Create a component: https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component
 
 ---
-## 6. Tooling cross-reference
+## 6. Environment-specific values (High severity — breaks on deployment)
+
+### Use environment variables, not hardcoded URLs or GUIDs
+
+Hardcoding environment-specific values — absolute URLs, site paths, tenant GUIDs, SharePoint or
+Dynamics 365 hostnames — is one of the most common causes of apps that work in development but
+silently break when moved to a test or production environment.
+
+**What to avoid:**
+- Absolute HTTP/HTTPS URLs (e.g. `"https://contoso.sharepoint.com/sites/ProdSite"`)
+- Tenant or record GUIDs (e.g. `"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"`)
+- Environment-specific SharePoint hostnames (`.sharepoint.com`, `.sharepoint.test`)
+- Dynamics 365 / Dataverse org URLs (`.crm.dynamics.com`, `.crm4.dynamics.com`, etc.)
+
+**Fix:** Replace every hardcoded environment-specific value with a **Power Apps environment
+variable** (`Environment()` function or a named formula backed by an environment variable record).
+Environment variables are promoted automatically by solution deployments and can be set per
+environment without touching the app itself.
+
+**Flag (`EV`, High, Confirmed, tier: narrative):** any string literal in a formula that matches
+an absolute URL (`https?://`), a GUID pattern, or an environment-specific hostname
+(`.sharepoint.com/.sharepoint.test`, `.crm*.dynamics.com`). Emit one finding per occurrence.
+
+**Note:** an `EV` finding and an `MV` (magic-value) finding may both fire on the same string
+literal — that is intentional. They address different concerns: `MV` (Low) flags any unexplained
+literal; `EV` (High) flags the specific deployment-breaking risk.
+
+**Authority:** Microsoft Power Platform ALM — environment variables guidance:
+https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables
+
+---
+## 7. Tooling cross-reference
 The **Power CAT Toolkit** is Microsoft's own code-review tool implementing much of this guidance (App
 Checker / Solution Checker likewise). Where useful, the report can note that a finding aligns with what
 those tools flag — reinforces that findings reflect Microsoft's own standards, not just model opinion.
