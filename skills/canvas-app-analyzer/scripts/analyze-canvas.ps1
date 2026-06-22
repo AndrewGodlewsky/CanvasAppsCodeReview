@@ -767,7 +767,7 @@ try {
         # 1. Single-line // comments
         foreach ($m in [regex]::Matches($codeText, '//(.*)$', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
             $c = $m.Groups[1].Value.Trim()
-            if ($c -match '[A-Za-z_]\w*\s*\(' -or $c -match '[;{}]') {
+            if ($c -match '[A-Za-z_]\w*\s*\(' -or $c -match '[;{}=]') {
                 [void]$codeLikeLines.Add($m.Value.Trim())
             }
         }
@@ -775,7 +775,7 @@ try {
         # 2. Block /* ... */ comments (single-line and multi-line)
         foreach ($m in [regex]::Matches($codeText, '/\*([\s\S]*?)\*/', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
             $c = $m.Groups[1].Value.Trim()
-            if ($c -match '[A-Za-z_]\w*\s*\(' -or $c -match '[;{}]') {
+            if ($c -match '[A-Za-z_]\w*\s*\(' -or $c -match '[;{}=]') {
                 [void]$codeLikeLines.Add($m.Value.Trim())
             }
         }
@@ -786,7 +786,7 @@ try {
             $ccCount = $codeLikeLines.Count
             $ccMsg = "Commented-out code found in $($fm.control).$($fm.property). Source control preserves history - remove dead code rather than commenting it out. ($ccCount code-like comment(s) found.)"
             [void]$det.Add((New-Finding -Prefix 'CC' -Type 'commented-out-code' `
-                -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Potential' -Tier 'enumeration' `
                 -Citation $ccCitation `
                 -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
                 -Evidence $evid `
