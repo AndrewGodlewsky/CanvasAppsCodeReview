@@ -233,6 +233,14 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =If (gblTitle = "a", 1, If (gblTitle = "b", 2, If (gblTitle = "c", 3, If (gblTitle = "d", 4, 5))))
+            - lblNdA:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblUser <> "" && gblTitle <> "", Concatenate(gblUser, " - ", gblTitle, " - ", "main dashboard view - active"), Concatenate("Guest", " - ", "main dashboard view - inactive"))
+            - lblNdB:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblUser <> "" && gblTitle <> "", Concatenate(gblUser, " - ", gblTitle, " - ", "main homepage view - active"), Concatenate("Guest", " - ", "main homepage view - inactive"))
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

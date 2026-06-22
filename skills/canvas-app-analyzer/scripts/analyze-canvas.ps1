@@ -189,6 +189,35 @@ $defaultNameRegex = '^(' + ($ControlTypeWords -join '|') + ')_?\d+$'
 $alwaysLocalFns = @('FirstN','LastN','Last','Choices','Concat','GroupBy','Ungroup')
 
 # ---------------------------------------------------------------------------
+# Get-Levenshtein: standard edit distance between two strings.
+# Uses a two-row rolling array to keep memory O(min(|a|,|b|)) rather than O(|a|*|b|).
+# No external modules — pure PowerShell dynamic programming.
+# ---------------------------------------------------------------------------
+function Get-Levenshtein([string]$a, [string]$b) {
+    $la = $a.Length; $lb = $b.Length
+    if ($la -eq 0) { return $lb }
+    if ($lb -eq 0) { return $la }
+    # Ensure $a is the shorter string so the rolling array is small.
+    if ($la -gt $lb) { $tmp = $a; $a = $b; $b = $tmp; $tmp = $la; $la = $lb; $lb = $tmp }
+    $prev = [int[]]::new($la + 1)
+    $curr = [int[]]::new($la + 1)
+    for ($j = 0; $j -le $la; $j++) { $prev[$j] = $j }
+    for ($i = 1; $i -le $lb; $i++) {
+        $curr[0] = $i
+        for ($j = 1; $j -le $la; $j++) {
+            $cost = if ($b[$i - 1] -eq $a[$j - 1]) { 0 } else { 1 }
+            $del  = $prev[$j]     + 1
+            $ins  = $curr[$j - 1] + 1
+            $sub  = $prev[$j - 1] + $cost
+            $mn   = if ($del -lt $ins) { $del } else { $ins }
+            $curr[$j] = if ($sub -lt $mn) { $sub } else { $mn }
+        }
+        $tmp = $prev; $prev = $curr; $curr = $tmp
+    }
+    return $prev[$la]
+}
+
+# ---------------------------------------------------------------------------
 # Get-MaxIfDepth: return the maximum If/Switch nesting depth in a CODE span.
 # Used by MC (Task 18) and optionally by DI (Task 19).
 # Algorithm: walk character-by-character; track overall paren depth and a
@@ -1261,6 +1290,108 @@ try {
             -Evidence "$($fm.control).$($fm.property): If/Switch nesting depth $ifDepth (threshold: $T_DeepIfDepth)" `
             -Message "Formula '$($fm.control).$($fm.property)' has If/Switch nesting depth $ifDepth (threshold: $T_DeepIfDepth). Break the nested chain into a With() scoped expression, a Switch on a shared condition, or named formulas (App.Formulas) to improve readability and maintainability." `
             -SortKey "$($fm.file)|$($fm.line)|$($fm.control).$($fm.property)"))
+    }
+
+    # --- Near-duplicate formulas (ND) - Medium, narrative, Confirmed ---
+    # Detects pairs of formulas that are likely copy-paste with small edits (near-dups),
+    # distinct from exact duplicates (XD).  Algorithm:
+    #   1. STRUCT-NORMALIZE each formula: lowercase, collapse whitespace, trim, blank
+    #      string-literal contents via Split-FormulaSpans (so formulas differing ONLY in
+    #      string values become structurally identical — still a near-dup worth flagging).
+    #   2. Only consider formulas whose struct-normalized length >= $T_NearDupMinLen (60).
+    #   3. For each pair within a length bucket (the two lengths within ±15%):
+    #      - SKIP if raw whitespace-collapsed texts are IDENTICAL (that's XD's job).
+    #      - Compute Levenshtein ratio = 1 - (distance / max(lenA, lenB)).
+    #      - If ratio >= $T_NearDupRatio (0.90) → the pair is a near-dup.
+    #   4. CLUSTER pairs transitively; emit ONE finding per cluster.
+    # Citation: coding-standards-and-performance.md §2 Redundancy (near-duplicate logic →
+    #   extract to named formula/component) — general maintainability guidance.
+    $ndCitation = 'coding-standards-and-performance.md section 2 (Redundancy / Near-duplicate formulas) - general maintainability guidance: extract to a named formula (App.Formulas) or Canvas Component to eliminate near-duplicate logic'
+
+    # Build struct-normalized representations for each formula record.
+    # structNorm = lowercase + collapse whitespace + blank string-literal contents.
+    $ndRecords = New-Object System.Collections.ArrayList
+    foreach ($fm in $formulas) {
+        $spans = Split-FormulaSpans $fm.text
+        # Blank string-literal contents: replace each literal's content with a fixed placeholder.
+        # Split-FormulaSpans returns Code where each "..." span is replaced with spaces of the
+        # same byte length, preserving column positions. We use the Code span directly as the
+        # struct-normalized base (string contents are already blanked to spaces).
+        $structNorm = ($spans.Code.ToLowerInvariant() -replace '\s+',' ').Trim()
+        if ($structNorm.Length -lt $T_NearDupMinLen) { continue }
+        # Raw collapsed text (for exact-dup skip guard)
+        $rawCollapsed = ($fm.text -replace '\s+',' ').Trim()
+        [void]$ndRecords.Add([pscustomobject]@{
+            fm          = $fm
+            structNorm  = $structNorm
+            rawCollapsed= $rawCollapsed
+            structLen   = $structNorm.Length
+        })
+    }
+
+    # Find near-dup pairs using length bucketing (only compare pairs within ±15% length).
+    # Union-Find for transitive clustering.
+    $ndCount = $ndRecords.Count
+    $ndParent = [int[]]::new($ndCount)
+    for ($i = 0; $i -lt $ndCount; $i++) { $ndParent[$i] = $i }
+
+    function _NdFind([int[]]$parent, [int]$x) {
+        while ($parent[$x] -ne $x) { $parent[$x] = $parent[$parent[$x]]; $x = $parent[$x] }
+        return $x
+    }
+    function _NdUnion([int[]]$parent, [int]$x, [int]$y) {
+        $rx = _NdFind $parent $x; $ry = _NdFind $parent $y
+        if ($rx -ne $ry) { $parent[$rx] = $ry }
+    }
+
+    for ($i = 0; $i -lt $ndCount - 1; $i++) {
+        $recA = $ndRecords[$i]
+        for ($j = $i + 1; $j -lt $ndCount; $j++) {
+            $recB = $ndRecords[$j]
+            # Length bucket guard: skip if lengths differ by more than 15%
+            $maxLen = [Math]::Max($recA.structLen, $recB.structLen)
+            $minLen = [Math]::Min($recA.structLen, $recB.structLen)
+            if ($minLen -lt ($maxLen * 0.85)) { continue }
+            # Skip if raw-collapsed texts are identical (exact duplicate → XD's job)
+            if ($recA.rawCollapsed -ceq $recB.rawCollapsed) { continue }
+            # Compute Levenshtein ratio on struct-normalized strings
+            $dist  = Get-Levenshtein $recA.structNorm $recB.structNorm
+            $ratio = 1.0 - ($dist / $maxLen)
+            if ($ratio -ge $T_NearDupRatio) {
+                _NdUnion $ndParent $i $j
+            }
+        }
+    }
+
+    # Collect clusters: group record indices by their root in the union-find.
+    $ndClusters = @{}
+    for ($i = 0; $i -lt $ndCount; $i++) {
+        $root = _NdFind $ndParent $i
+        if (-not $ndClusters.ContainsKey($root)) { $ndClusters[$root] = New-Object System.Collections.ArrayList }
+        [void]$ndClusters[$root].Add($i)
+    }
+
+    foreach ($root in $ndClusters.Keys) {
+        $idxList = $ndClusters[$root]
+        if ($idxList.Count -lt 2) { continue }   # singleton → no near-dup
+        # Sort members deterministically: file then line then control.property
+        $members = @($idxList | ForEach-Object { $ndRecords[$_] } | Sort-Object {
+            "$($_.fm.file)|$($_.fm.line)|$($_.fm.control).$($_.fm.property)"
+        })
+        $first = $members[0].fm
+        $memberList = @($members | ForEach-Object { "$($_.fm.control).$($_.fm.property) ($($_.fm.file):$($_.fm.line))" })
+        $sortKey    = ($memberList | Sort-Object) -join '|'
+        $evid = "Near-duplicate formulas ($($members.Count)): " + ($memberList -join '; ')
+        $msg  = "$($members.Count) formulas are near-duplicates (likely copy-paste with small edits): " +
+                ($memberList -join '; ') +
+                ". Extract the shared logic to a named formula (App.Formulas) or a Canvas Component with input properties for the differing parts."
+        [void]$det.Add((New-Finding -Prefix 'ND' -Type 'near-duplicate-formula' `
+            -Category 'Redundancy & reuse' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+            -Citation $ndCitation `
+            -Location @{ screen=$first.screen; control=$first.control; property=$first.property; file=$first.file; line=$first.line } `
+            -Evidence $evid `
+            -Message $msg `
+            -SortKey $sortKey))
     }
 
     # ============================================================================
