@@ -111,6 +111,39 @@ function Resolve-Connector {
 }
 
 # ---------------------------------------------------------------------------
+# Formula tokenizer: split a Power Fx formula into code spans vs string-literal spans.
+# Power Fx strings are double-quoted; "" inside a literal is an escaped quote character.
+# ---------------------------------------------------------------------------
+function Split-FormulaSpans {
+    param([string]$Text)
+    if ($null -eq $Text -or $Text.Length -eq 0) { return [pscustomobject]@{ Code=''; Strings=@() } }
+    $code    = New-Object System.Text.StringBuilder
+    $strings = New-Object System.Collections.ArrayList
+    $i = 0; $n = $Text.Length
+    while ($i -lt $n) {
+        $ch = $Text[$i]
+        if ($ch -eq '"') {
+            $i++; $lit = New-Object System.Text.StringBuilder
+            while ($i -lt $n) {
+                if ($Text[$i] -eq '"') {
+                    if ($i + 1 -lt $n -and $Text[$i + 1] -eq '"') {
+                        [void]$lit.Append('"'); $i += 2; continue
+                    }
+                    $i++; break
+                }
+                [void]$lit.Append($Text[$i]); $i++
+            }
+            [void]$strings.Add($lit.ToString())
+            # Replace the entire "..." token (quotes + content) with spaces to preserve column positions
+            [void]$code.Append(' ' * ($lit.Length + 2))
+        } else {
+            [void]$code.Append($ch); $i++
+        }
+    }
+    [pscustomobject]@{ Code = $code.ToString(); Strings = @($strings) }
+}
+
+# ---------------------------------------------------------------------------
 # Known control type words (for default-name detection + prefix table)
 # Default names look like "<TypeWord><digits>" e.g. Gallery3, Button1, Screen2.
 # ---------------------------------------------------------------------------
@@ -131,6 +164,17 @@ $defaultNameRegex = '^(' + ($ControlTypeWords -join '|') + ')_?\d+$'
 $alwaysLocalFns = @('FirstN','LastN','Last','Choices','Concat','GroupBy','Ungroup')
 
 try {
+    # Self-test shim: invoked as analyze-canvas.ps1 '__spans' with formula in
+    # $env:CAA_SPANS_FORMULA (env var avoids PowerShell child-process quoting issues
+    # for formulas that contain double-quotes). Falls back to $AppName for simple cases.
+    # Prints Split-FormulaSpans result as compact JSON and exits 0.
+    # Normal analysis runs ($Path is a real file path) are completely unaffected.
+    if ($Path -eq '__spans') {
+        $formula = if ($env:CAA_SPANS_FORMULA -ne $null) { $env:CAA_SPANS_FORMULA } else { $AppName }
+        (Split-FormulaSpans $formula) | ConvertTo-Json -Compress
+        exit 0
+    }
+
     if (-not (Test-Path $Path)) {
         Write-Status -Obj @{ status = 'error'; message = "Input path not found: $Path" }
         exit 0
