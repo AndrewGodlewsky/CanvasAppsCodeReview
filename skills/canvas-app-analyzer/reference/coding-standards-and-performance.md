@@ -13,6 +13,8 @@
 > - Fast (efficient) calculations: https://learn.microsoft.com/power-apps/maker/canvas-apps/efficient-calculations
 > - Fast app/page load: https://learn.microsoft.com/power-apps/maker/canvas-apps/fast-app-page-load
 > - Select N+1 / top performance issues: https://learn.microsoft.com/power-platform/architecture/key-concepts/performance/top-issues
+> - Environment variables (Power Platform ALM): https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables
+> - Create a canvas component: https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component
 > - Power CAT Toolkit (the human equivalent of this skill): referenced by the coding guidelines overview
 
 ---
@@ -110,6 +112,18 @@ harder to audit and maintain — you cannot reliably search for "all global vari
 - Source: general maintainability guidance —
   https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
 
+### Magic values / Repeated literals
+- A **magic value** (`MV`, Low) is any hardcoded literal (string or number) in a formula whose purpose
+  is not self-evident from context. Maintainability guidance: extract to a **named formula** in
+  `App.Formulas` (immutable, self-documenting, single place to update) or a constant set once in
+  `App.OnStart`. This is general maintainability guidance —
+  https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+- A **repeated literal** (`RL`, Medium) is a literal value that appears in three or more distinct
+  formulas. Repetition creates silent drift (one copy gets updated; others don't). Centralize into a
+  named formula (`App.Formulas`) or a named constant so every consumer references the name, not the
+  value, and changes propagate automatically. This is general maintainability guidance —
+  https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+
 ### Formula formatting
 - Long unformatted single-line formulas are a readability finding; the **Format text** command (or line
   breaks + indentation) is the fix.
@@ -148,8 +162,17 @@ harder to audit and maintain — you cannot reliably search for "all global vari
 ### Split long formulas / duplicated formulas  [Confirmed → Redundancy]
 - Formulas over ~**256,000 characters** strain Studio (worst apps exceed 1M). Copy-pasting a control
   **duplicates its formulas silently**. Split into reusable **named formulas** / `With` subexpressions.
-- **Redundancy findings:** identical formula text repeated across controls/screens → extract to a named
-  formula or a **component**; duplicated control/screen layouts → componentize.
+- **Long formula (`LF`, Medium):** a single-property formula that exceeds the byte threshold should be
+  split into `With()` subexpressions or extracted to `App.Formulas` named formulas to improve
+  readability and Studio performance. This is general maintainability guidance —
+  https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+- **Redundancy findings:** identical formula text repeated across controls/screens (`XD`) → extract to a
+  named formula or a **component**; duplicated control/screen layouts → componentize.
+- **Near-duplicate formulas (`ND`, Medium):** formulas that are near-identical (Levenshtein similarity
+  ≥ 90%) but not exact matches are almost certainly copy-paste with small edits. The shared logic
+  should be extracted to a named formula (`App.Formulas`) or a Canvas Component with input properties
+  for the differing parts. This is general maintainability guidance — extract to a named formula or
+  component to eliminate near-duplicate logic.
 
 ### Duplicate / redundant controls  [Confirmed → Redundancy]
 - Two or more controls of the **same type** with a **near-identical property set** are almost certainly

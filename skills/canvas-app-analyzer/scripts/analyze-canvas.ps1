@@ -953,9 +953,9 @@ try {
         }
     }
     # Unreferenced controls (Potential) — behavior-aware per-control verdicts (D5)
-    # Citation: coding-standards-and-performance.md section 3 (Dead/unused controls)
+    # Citation: coding-standards-and-performance.md section 3 (Dead / unused)
     # - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
-    $urCitation = 'coding-standards-and-performance.md section 3 (Dead/unused controls) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    $urCitation = 'coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
 
     # Known names that could appear in data-bound formulas: data sources, variables, collections,
     # and component custom property names (bare tokens inside component formulas).
@@ -1308,8 +1308,8 @@ try {
     # A single property formula whose UTF-8 byte count exceeds $T_LongFormulaBytes is flagged.
     # Long formulas hurt readability and Studio performance. Split into With() subexpressions
     # or named formulas (App.Formulas).
-    # Citation: coding-standards-and-performance.md §2 "Formula formatting" + "Split long formulas"
-    $lfCitation = 'coding-standards-and-performance.md section 2 (Formula formatting / Split long formulas) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    # Citation: coding-standards-and-performance.md §2 "Split long formulas" (LF guidance)
+    $lfCitation = 'coding-standards-and-performance.md section 2 (Split long formulas / Long formula) - general maintainability guidance: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
     foreach ($fm in $formulas) {
         $byteCount = [System.Text.Encoding]::UTF8.GetByteCount($fm.text)
         if ($byteCount -gt $T_LongFormulaBytes) {
@@ -1365,7 +1365,7 @@ try {
     #   4. CLUSTER pairs transitively; emit ONE finding per cluster.
     # Citation: coding-standards-and-performance.md §2 Redundancy (near-duplicate logic →
     #   extract to named formula/component) — general maintainability guidance.
-    $ndCitation = 'coding-standards-and-performance.md section 2 (Redundancy / Near-duplicate formulas) - general maintainability guidance: extract to a named formula (App.Formulas) or Canvas Component to eliminate near-duplicate logic'
+    $ndCitation = 'coding-standards-and-performance.md section 2 (Split long formulas / Near-duplicate formulas) - general maintainability guidance: extract to a named formula (App.Formulas) or Canvas Component to eliminate near-duplicate logic'
 
     # Build struct-normalized representations for each formula record.
     # structNorm = lowercase + collapse whitespace + blank string-literal contents.
@@ -1501,7 +1501,7 @@ try {
     #   Magic values: centralize hardcoded literals into named formulas (App.Formulas)
     #   or named constants (global variables set once in App.OnStart).
     # - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
-    $mvCitation = 'coding-standards-and-performance.md section 1 (Code readability / Magic values) - centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    $mvCitation = 'coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
     # $mvOrd disambiguates the sortKey when the SAME literal value appears twice at the
     # same file/line/control/property (e.g. If(x, "retry", "retry")) so each occurrence
     # still gets a unique, stable id. $magicLiterals build order is deterministic.
@@ -1531,7 +1531,7 @@ try {
     #   maintainability guidance: centralize repeated constants into a named formula
     #   (App.Formulas) so changes propagate automatically:
     #   https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
-    $rlCitation = 'coding-standards-and-performance.md section 1/2 (Repeated literals) - centralize repeated constants into a named formula (App.Formulas): https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    $rlCitation = 'coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize repeated constants into a named formula (App.Formulas): https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
 
     # Group $magicLiterals by value; count distinct (file|line) keys per group.
     $rlByValue = @{}
