@@ -846,9 +846,14 @@ try {
     # Citation: coding-standards-and-performance.md section 5 (Components & reuse)
     $upCitation = 'coding-standards-and-performance.md section 5 (Components & reuse) - https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps | https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component'
     foreach ($cp in $compCustomProps) {
-        # Check for qualified reference: "cmpFooter.UnusedProp"
-        $qualifiedRef = [bool]([regex]::Matches($allText, '(?<![\w.])' + [regex]::Escape($cp.compName) + '\.' + [regex]::Escape($cp.propName) + '\b')).Count
-        # Check for bare token reference: "UnusedProp" (word-boundary match)
+        # A property is "read" if it appears qualified ("cmpFooter.MyProp", from an instance)
+        # or bare ("MyProp", how a component references its own property internally).
+        # KNOWN LIMITATION (regex parser): the bare-token check can FALSE-NEGATIVE (suppress a
+        # real UP finding) for generic property names that collide with common tokens elsewhere
+        # in formula text (e.g. a property literally named "Text"/"Color"/"Width"). The qualified
+        # reference is the strong signal; the bare check is a conservative under-report. Acceptable
+        # for an enumeration-tier/Low finding (we prefer missing one over a false positive).
+        $qualifiedRef = ([regex]::Matches($allText, '(?<![\w.])' + [regex]::Escape($cp.compName) + '\.' + [regex]::Escape($cp.propName) + '\b')).Count -gt 0
         $bareRef = Count-Refs $cp.propName
         if (-not $qualifiedRef -and $bareRef -le 0) {
             [void]$det.Add((New-Finding -Prefix 'UP' -Type 'unused-component-property' `
