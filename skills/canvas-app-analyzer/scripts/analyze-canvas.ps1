@@ -1549,6 +1549,36 @@ try {
             -SortKey ("{0}|{1}|{2}.{3}|{4}|{5:D5}" -f $lit.file,$lit.line,$lit.control,$lit.property,$lit.value,$evOrd)))
     }
 
+    # --- God screens (GS) - Medium, narrative, Confirmed ---
+    # A screen with too many controls OR too much formula weight is a god screen that
+    # should be decomposed into components, nested galleries, or split across screens.
+    # Iterates $screenInfo (screens only — App and components are excluded by construction).
+    # Citation: coding-standards-and-performance.md §5 (God screens) —
+    #   Build large & complex canvas apps:
+    #   https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
+    $gsCitation = 'coding-standards-and-performance.md section 5 (God screens) - decompose into components/nested galleries; move logic to App.Formulas: https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps'
+    foreach ($si in $screenInfo) {
+        $isGodByControls = ($si.controlCount -gt $T_GodScreenControls)
+        $isGodByBytes    = ($si.formulaBytes -gt $T_GodScreenBytes)
+        if (-not $isGodByControls -and -not $isGodByBytes) { continue }
+
+        $reasons = @()
+        if ($isGodByControls) { $reasons += "$($si.controlCount) controls (threshold: $T_GodScreenControls)" }
+        if ($isGodByBytes)    { $reasons += "$($si.formulaBytes) formula bytes (threshold: $T_GodScreenBytes)" }
+        $reasonStr = $reasons -join '; '
+
+        $evid = "Screen '$($si.name)': $reasonStr"
+        $msg  = "Screen '$($si.name)' is a god screen ($reasonStr). Decompose it: extract repeated control groups into Canvas Components, use nested galleries/containers to reduce top-level control count, and move shared logic to App.Formulas named formulas."
+
+        [void]$det.Add((New-Finding -Prefix 'GS' -Type 'god-screen' `
+            -Category 'Maintainability & naming' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+            -Citation $gsCitation `
+            -Location @{ screen=$si.name; control=$null; property=$null; file=$si.file; line=1 } `
+            -Evidence $evid `
+            -Message $msg `
+            -SortKey "$($si.file)|1|$($si.name)"))
+    }
+
     # ============================================================================
     # JUDGMENT LEADS (the model confirms/rejects using the bundled references)
     # ============================================================================

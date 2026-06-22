@@ -224,6 +224,31 @@ Flag (via reference counting across all `.pa.yaml`):
     https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
   - Create a component: https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component
 
+### God screens — decompose oversized screens
+
+A screen that accumulates too many controls or too much formula weight is a **god screen**: a single
+screen that does too much, making it hard to navigate in Power Apps Studio, difficult to maintain,
+and slow to load (Power Apps loads all controls on a screen before it renders).
+
+**Thresholds (configurable):**
+- `controlCount > 40` (env override: `CAA_GOD_SCREEN_CONTROLS`) — too many controls signals that
+  the screen handles too many concerns and should be split or componentized.
+- `formulaBytes > 20000` (env override: `CAA_GOD_SCREEN_BYTES`) — excessive formula weight on a
+  single screen hints at logic that should move to `App.Formulas` named formulas or to components.
+
+**Fix:**
+- Decompose into **Canvas Components**: extract repeated control groups into reusable components
+  with input properties, then replace the controls with component instances on each screen.
+- Use **nested galleries or containers** to group related controls, reducing top-level control count.
+- Move shared logic to **App.Formulas** named formulas so formula weight is not duplicated per screen.
+- Split concerns across multiple screens if the screen genuinely serves multiple user tasks.
+
+**Flag (`GS`, Medium, Confirmed, tier: narrative):** emit one finding per screen that exceeds either
+threshold. Location is the screen; evidence states the control count and formula byte count.
+
+**Authority:** Build large & complex canvas apps:
+https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
+
 ---
 ## 6. Environment-specific values (High severity — breaks on deployment)
 
