@@ -1,9 +1,9 @@
 # Task 17: LF — long-formula detector
 # Fixture: MaintainabilityKitchenSink (extended with lblLong: a Label whose Text formula
-#   is a long Concatenate string deliberately over ~400 bytes).
+#   is a long Concatenate string deliberately over ~292 bytes).
 # Test uses CAA_LONG_FORMULA_BYTES=250 override to make the count deterministic.
 #   At threshold 250, only lblLong exceeds the threshold.
-#   At default threshold 500, lblLong (~400 bytes) does NOT exceed — so no LF fires in the
+#   At default threshold 500, lblLong (~292 bytes) does NOT exceed — so no LF fires in the
 #   default suite run, and no other tests are affected.
 #
 # Expected with threshold=250:

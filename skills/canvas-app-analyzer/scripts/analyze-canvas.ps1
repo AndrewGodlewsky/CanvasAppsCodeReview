@@ -114,7 +114,7 @@ $T_GodScreenControls  = _Thr 'GOD_SCREEN_CONTROLS'   40   # control count above 
 $T_GodScreenBytes     = _Thr 'GOD_SCREEN_BYTES'    20000   # total formula-byte count above which a screen is flagged
 $T_ControlTreeDepth   = _Thr 'CONTROL_TREE_DEPTH'      5   # nesting depth at which a control-tree depth lead fires
 $T_RepeatedLiteralMin = _Thr 'REPEATED_LITERAL_MIN'    3   # minimum repetition count to flag a repeated string literal
-$T_NearDupRatio       = _Thr 'NEAR_DUP_RATIO'       0.90   # Jaccard similarity ratio above which formulas are near-duplicates
+$T_NearDupRatio       = _Thr 'NEAR_DUP_RATIO'       0.90   # Levenshtein similarity ratio above which formulas are near-duplicates
 $T_NearDupMinLen      = _Thr 'NEAR_DUP_MIN_LEN'       60   # minimum formula length (chars) before near-dup comparison runs
 $T_GlobalOveruse      = _Thr 'GLOBAL_OVERUSE'         20   # number of global variables above which a global-overuse lead fires
 
@@ -1043,7 +1043,7 @@ try {
     # "instantiated" signal because their type is 'Label', 'Button', etc., not 'cmpXxx'.
     $ukCitation = 'coding-standards-and-performance.md section 5 (Components & reuse) - https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps | https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component'
     $instantiatedComponentTypes = @($controls | ForEach-Object { $_.type } | Sort-Object -Unique)
-    foreach ($compName in @($compFiles.Keys)) {
+    foreach ($compName in @($compFiles.Keys | Sort-Object)) {
         if ([string]::IsNullOrWhiteSpace($compName)) { continue }
         if ($instantiatedComponentTypes -notcontains $compName) {
             # Determine the component's source file path
@@ -1261,7 +1261,7 @@ try {
         if (-not $dcSigMap.ContainsKey($sig)) { $dcSigMap[$sig] = New-Object System.Collections.ArrayList }
         [void]$dcSigMap[$sig].Add([pscustomobject]@{ name=$c.name; file=$c.file; line=$c.line; screen=$c.screen })
     }
-    foreach ($sig in $dcSigMap.Keys) {
+    foreach ($sig in ($dcSigMap.Keys | Sort-Object)) {
         $grp = $dcSigMap[$sig]
         if ($grp.Count -ge 2) {
             $first = $grp[0]
@@ -1289,7 +1289,7 @@ try {
         if (-not $byNorm.ContainsKey($norm)) { $byNorm[$norm] = New-Object System.Collections.ArrayList }
         [void]$byNorm[$norm].Add($fm)
     }
-    foreach ($k in $byNorm.Keys) {
+    foreach ($k in ($byNorm.Keys | Sort-Object)) {
         $grp = $byNorm[$k]
         if ($grp.Count -ge 2) {
             $locs = @($grp | ForEach-Object { "$($_.screen)->$($_.control).$($_.property) ($($_.file):$($_.line))" })
@@ -1339,9 +1339,6 @@ try {
         $codeText = $spans.Code
         $ifDepth  = Get-MaxIfDepth $codeText
         if ($ifDepth -lt $T_DeepIfDepth) { continue }
-        $snipLen    = [Math]::Min(120, $fm.text.Length)
-        $snipSuffix = if ($fm.text.Length -gt $snipLen) { ' ...' } else { '' }
-        $snip       = $fm.text.Substring(0, $snipLen) + $snipSuffix
         [void]$det.Add((New-Finding -Prefix 'DI' -Type 'deep-if-nesting' `
             -Category 'Maintainability & naming' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
             -Citation $diCitation `
@@ -1780,9 +1777,6 @@ try {
         $codeText = $spans.Code
 
         # Scan the code span for <controlName>. references (word-boundary before name, dot after).
-        # Track already-reported (formula, referencedControl) pairs so we emit at most ONE lead
-        # per cross-screen reference per formula.
-        $xcAlreadyReported = @{}
         foreach ($ctrlName in $xcCtrlMap.Keys) {
             $targetScreen = $xcCtrlMap[$ctrlName]
             if ($null -eq $targetScreen) { continue }      # ambiguous - skip
@@ -1791,11 +1785,6 @@ try {
             # Match: word boundary before the control name, then a literal dot (property access)
             $pattern = '(?<![\w.])' + [regex]::Escape($ctrlName) + '\.'
             if (-not [regex]::IsMatch($codeText, $pattern)) { continue }
-
-            # Deduplicate: only one lead per (formula-location, referenced-control) pair
-            $dedupKey = "$($fm.file)|$($fm.line)|$($fm.control)|$ctrlName"
-            if ($xcAlreadyReported.ContainsKey($dedupKey)) { continue }
-            $xcAlreadyReported[$dedupKey] = $true
 
             $snipLen = [Math]::Min(200, $fm.text.Length)
             $snip    = $fm.text.Substring(0, $snipLen) + $(if ($fm.text.Length -gt $snipLen) { ' ...' } else { '' })

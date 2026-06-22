@@ -4,7 +4,7 @@
 # Three controls planted that each use "SharedConstantToken_RL" in 3 distinct formulas:
 #   - lblRepA.Text:  ="SharedConstantToken_RL"
 #   - lblRepB.Text:  =Concatenate("SharedConstantToken_RL", " suffix")
-#   - lblRepC.Text:  =If(true, "SharedConstantToken_RL", "other")
+#   - lblRepC.Text:  =If(gblZebra > 0, "SharedConstantToken_RL", "other")
 #
 # "SharedConstantToken_RL" appears in 3 DISTINCT formulas → exactly ONE RL finding.
 # A once-used literal (e.g. lblMagic's 8675309) must NOT be an RL finding.
