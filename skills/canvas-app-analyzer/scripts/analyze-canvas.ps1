@@ -1365,7 +1365,7 @@ try {
     #   4. CLUSTER pairs transitively; emit ONE finding per cluster.
     # Citation: coding-standards-and-performance.md §2 Redundancy (near-duplicate logic →
     #   extract to named formula/component) — general maintainability guidance.
-    $ndCitation = 'coding-standards-and-performance.md section 2 (Split long formulas / Near-duplicate formulas) - general maintainability guidance: extract to a named formula (App.Formulas) or Canvas Component to eliminate near-duplicate logic'
+    $ndCitation = 'coding-standards-and-performance.md section 2 (Split long formulas / Near-duplicate formulas) - general maintainability guidance: extract to a named formula (App.Formulas) or Canvas Component to eliminate near-duplicate logic: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
 
     # Build struct-normalized representations for each formula record.
     # structNorm = lowercase + collapse whitespace + blank string-literal contents.
