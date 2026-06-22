@@ -189,6 +189,62 @@ $defaultNameRegex = '^(' + ($ControlTypeWords -join '|') + ')_?\d+$'
 $alwaysLocalFns = @('FirstN','LastN','Last','Choices','Concat','GroupBy','Ungroup')
 
 # ---------------------------------------------------------------------------
+# Get-MaxIfDepth: return the maximum If/Switch nesting depth in a CODE span.
+# Used by MC (Task 18) and optionally by DI (Task 19).
+# Algorithm: walk character-by-character; track overall paren depth and a
+# stack of "If/Switch frame" paren depths.  When we see the token "If(" or
+# "Switch(" we push the current paren depth onto the If/Switch stack and
+# increment paren depth; when overall paren depth drops back to the level
+# at the top of the stack we pop that frame.  Max stack size = max nesting.
+# Requires the CODE span (string literals already blanked) so only code-
+# level If( / Switch( calls are matched — not tokens inside string values.
+# ---------------------------------------------------------------------------
+function Get-MaxIfDepth([string]$Code) {
+    if ($null -eq $Code -or $Code.Length -eq 0) { return 0 }
+    $maxDepth   = 0
+    $parenDepth = 0           # overall paren nesting (all ( ) pairs)
+    $ifStack    = New-Object System.Collections.Generic.Stack[int]  # paren depths of open If/Switch frames
+    $n          = $Code.Length
+    $i          = 0
+
+    while ($i -lt $n) {
+        # Check for If( or Switch( token starting at position $i
+        $isIfToken = $false
+        if ($i + 2 -lt $n -and $Code[$i] -eq 'I' -and $Code[$i+1] -eq 'f' -and $Code[$i+2] -eq '(') {
+            # Confirm it is a word boundary (no preceding identifier char)
+            if ($i -eq 0 -or -not [char]::IsLetterOrDigit($Code[$i-1]) -and $Code[$i-1] -ne '_') {
+                $isIfToken = $true; $i += 2  # advance past "If", leave '(' to be processed below
+            }
+        }
+        elseif ($i + 6 -lt $n -and $Code.Substring($i,6) -eq 'Switch' -and $Code[$i+6] -eq '(') {
+            if ($i -eq 0 -or -not [char]::IsLetterOrDigit($Code[$i-1]) -and $Code[$i-1] -ne '_') {
+                $isIfToken = $true; $i += 6  # advance past "Switch", leave '(' below
+            }
+        }
+
+        $ch = $Code[$i]
+        if ($ch -eq '(') {
+            $parenDepth++
+            if ($isIfToken) {
+                # This '(' opens an If/Switch call; record current depth as frame marker
+                [void]$ifStack.Push($parenDepth)
+                $depth = $ifStack.Count
+                if ($depth -gt $maxDepth) { $maxDepth = $depth }
+            }
+        }
+        elseif ($ch -eq ')') {
+            # Pop any If/Switch frames whose opening paren depth equals current parenDepth
+            while ($ifStack.Count -gt 0 -and $ifStack.Peek() -eq $parenDepth) {
+                [void]$ifStack.Pop()
+            }
+            if ($parenDepth -gt 0) { $parenDepth-- }
+        }
+        $i++
+    }
+    return $maxDepth
+}
+
+# ---------------------------------------------------------------------------
 # Finding / Lead constructors + ID stamper (Task 6 / D3)
 # ---------------------------------------------------------------------------
 function New-Finding {
@@ -975,6 +1031,44 @@ try {
                 -Message $ccMsg `
                 -SortKey "$($fm.file)|$($fm.line)|$($fm.control)"))
         }
+    }
+
+    # --- Missing comment on complex formula (MC) - Low, enumeration, Confirmed ---
+    # A formula is COMPLEX if: its UTF-8 byte count > $T_LongFormulaBytes  OR
+    #   the maximum If/Switch nesting depth in its CODE span >= $T_DeepIfDepth.
+    # A complex formula that has NO explanatory comment in its CODE span fires MC.
+    # "No comment" = CODE span contains neither "//" nor "/*".
+    # Formulas with a comment (even prose-only) do NOT fire MC (CC/MC non-contradiction, DoD #12).
+    # Citation: coding-standards-and-performance.md section 1 (Comments)
+    # - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+    $mcCitation = 'coding-standards-and-performance.md section 1 (Comments) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    foreach ($fm in $formulas) {
+        $byteCount = [System.Text.Encoding]::UTF8.GetByteCount($fm.text)
+        $spans     = Split-FormulaSpans $fm.text
+        $codeText  = $spans.Code
+
+        # Complexity check: long (byte count) OR deep If/Switch nesting
+        $isLong  = ($byteCount -gt $T_LongFormulaBytes)
+        $ifDepth = Get-MaxIfDepth $codeText
+        $isDeep  = ($ifDepth -ge $T_DeepIfDepth)
+        if (-not $isLong -and -not $isDeep) { continue }
+
+        # Comment check: any "//" or "/*" present in the CODE span
+        $hasComment = ($codeText -match '//') -or ($codeText -match '/\*')
+        if ($hasComment) { continue }   # has a comment → does NOT fire MC
+
+        $reasonParts = @()
+        if ($isDeep)  { $reasonParts += "If/Switch nesting depth $ifDepth (threshold: $T_DeepIfDepth)" }
+        if ($isLong)  { $reasonParts += "$byteCount bytes (threshold: $T_LongFormulaBytes)" }
+        $reason = $reasonParts -join '; '
+
+        [void]$det.Add((New-Finding -Prefix 'MC' -Type 'missing-comment-complex-formula' `
+            -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+            -Citation $mcCitation `
+            -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
+            -Evidence "$($fm.control).$($fm.property): $reason" `
+            -Message "Complex formula '$($fm.control).$($fm.property)' has no explanatory comment ($reason). Add a // or /* */ comment to document the intent of non-obvious logic." `
+            -SortKey "$($fm.file)|$($fm.line)|$($fm.control).$($fm.property)"))
     }
 
     # --- Stub event handlers (EH) - Low, enumeration, Confirmed ---

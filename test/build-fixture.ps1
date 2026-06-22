@@ -229,6 +229,10 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =Concatenate("This is a deliberately very long formula used to exercise the long-formula detector. ", "It needs to exceed the configured byte threshold so the LF detector fires on exactly this one control. ", "Padding padding padding padding padding padding padding padding padding padding.")
+            - lblComplexNoComment:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblTitle = "a", 1, If(gblTitle = "b", 2, If(gblTitle = "c", 3, If(gblTitle = "d", 4, 5))))
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
