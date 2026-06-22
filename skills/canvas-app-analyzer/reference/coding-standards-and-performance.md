@@ -63,6 +63,21 @@ Abbreviation table (from docs):
   comments on complex formulas" is a legitimate maintainability finding; comment volume is never a
   performance problem. Encourage `//` and `/* */` on non-obvious logic.
 
+#### Distinguishing commented-out code from explanatory comments
+- **Explanatory / prose comments** (e.g. `// Submit the order to the back end`) are **encouraged** on
+  complex formulas and must NOT be flagged. They document intent and help future maintainers.
+- **Commented-out code** (e.g. `// Patch(Orders, Defaults(Orders), {Title: "x"});`) is a
+  maintainability finding (**CC**, Low). Source control already preserves history; leaving dead code
+  commented out adds noise, confuses readers, and may cause stale references. **Remove it.**
+- **Heuristic to distinguish them:** a comment is treated as commented-out code when its text contains
+  a function call pattern (`Identifier(`) OR one of the code characters `;`, `{`, `}`.
+  Pure prose (natural-language text without these markers) is NOT flagged.
+- The CC detector operates on the **code spans** of each formula (string literals are blanked out
+  first), so `//` inside a URL string literal is never mis-classified.
+- This distinction also applies to the MC (missing-comments) detector: CC and MC must not contradict
+  each other. A formula that has explanatory prose comments does NOT fire CC; a complex formula that
+  lacks any comment MAY fire MC. Both findings are consistent with the guidance above.
+
 ### Formula formatting
 - Long unformatted single-line formulas are a readability finding; the **Format text** command (or line
   breaks + indentation) is the fix.

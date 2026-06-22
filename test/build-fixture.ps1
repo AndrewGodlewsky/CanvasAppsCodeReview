@@ -160,6 +160,18 @@ Screens:
                                 Control: Label@2.0.0
                                 Properties:
                                     Text: ="deep"
+            - lblBusy:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblBusy, "Working...", "")
+            - btnSubmit:
+                Control: Classic/Button@2.2.0
+                Properties:
+                    OnSelect: |
+                        =// Submit the order to the back end
+                        Set(gblBusy, true);
+                        // Patch(Orders, Defaults(Orders), {Title: "x"});
+                        Notify("done")
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

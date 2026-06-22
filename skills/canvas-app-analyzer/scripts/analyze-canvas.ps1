@@ -752,6 +752,49 @@ try {
         }
     }
 
+    # --- Commented-out code (CC) - Low, enumeration ---
+    # Scans each formula's CODE spans (string literals blanked out so //inside-a-URL is ignored).
+    # Flags // and /* */ comments whose content looks like code, NOT prose.
+    # Code heuristic: contains a function-call pattern ([A-Za-z_]\w*\s*\() OR one of ; { }
+    # Prose comments (e.g. "// Submit the order to the back end") are intentional and NOT flagged.
+    # Citation: coding-standards-and-performance.md section 1 Comments
+    $ccCitation = 'coding-standards-and-performance.md section 1 (Comments) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    foreach ($fm in $formulas) {
+        $spans = Split-FormulaSpans $fm.text
+        $codeText = $spans.Code
+        $codeLikeLines = New-Object System.Collections.ArrayList
+
+        # 1. Single-line // comments
+        foreach ($m in [regex]::Matches($codeText, '//(.*)$', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
+            $c = $m.Groups[1].Value.Trim()
+            if ($c -match '[A-Za-z_]\w*\s*\(' -or $c -match '[;{}]') {
+                [void]$codeLikeLines.Add($m.Value.Trim())
+            }
+        }
+
+        # 2. Block /* ... */ comments (single-line and multi-line)
+        foreach ($m in [regex]::Matches($codeText, '/\*([\s\S]*?)\*/', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+            $c = $m.Groups[1].Value.Trim()
+            if ($c -match '[A-Za-z_]\w*\s*\(' -or $c -match '[;{}]') {
+                [void]$codeLikeLines.Add($m.Value.Trim())
+            }
+        }
+
+        if ($codeLikeLines.Count -gt 0) {
+            $evid = ($codeLikeLines | Select-Object -First 3) -join ' | '
+            if ($evid.Length -gt 200) { $evid = $evid.Substring(0, 200) + ' ...' }
+            $ccCount = $codeLikeLines.Count
+            $ccMsg = "Commented-out code found in $($fm.control).$($fm.property). Source control preserves history - remove dead code rather than commenting it out. ($ccCount code-like comment(s) found.)"
+            [void]$det.Add((New-Finding -Prefix 'CC' -Type 'commented-out-code' `
+                -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Citation $ccCitation `
+                -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
+                -Evidence $evid `
+                -Message $ccMsg `
+                -SortKey "$($fm.file)|$($fm.line)|$($fm.control)"))
+        }
+    }
+
     # --- Exact duplicate formulas (Confirmed, Redundancy) ---
     $byNorm = @{}
     foreach ($fm in $formulas) {
