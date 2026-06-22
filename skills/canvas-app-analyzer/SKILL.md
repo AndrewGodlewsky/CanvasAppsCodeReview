@@ -124,6 +124,12 @@ whether an orphan screen is reached via a variable).
 `Medium` = real perf or maintainability cost; `Low` = minor cleanup. Most `deterministicFindings`
 already carry sensible severities — keep them unless you have a reason to adjust.
 
+**Every lead must be accounted for by ID.** A lead you *reject* as a false positive is not simply
+dropped — you must still mention its ID in the report with a one-line dismissal reason (e.g.
+"`L-04` — dismissed: source is a local collection, no delegation needed"). The verifier in Step 7
+flags any lead ID absent from the report as `unaddressedLeads`, so a rejected-but-unmentioned lead
+will fail the check.
+
 ## Step 6 — Write the report (narrative only)
 
 Write to `<outputDir>/<report>` (e.g. `<outputDir>/FieldServiceApp.analysis.md`) with **exactly**
@@ -164,6 +170,10 @@ its assigned finding ID (e.g. `UV-01`, `CC-03`). Also write up the following hig
 maintainability findings regardless of severity: repeated literals (`RL-*`), environment-specific
 hardcoding (`EV-*`, High), and god-screens (`GS-*`). For all other Low findings, the enumeration
 tables in `enumeration.md` are the record — do not copy them into the narrative.
+
+**Exception — `UR-*` (unreferenced controls):** these are Low-severity but are the one Low category
+you **do** report individually in the narrative (each with its `verdict` — see below). They are not
+deferred to `enumeration.md`. This is the only carve-out from the "Low stays in enumeration" rule.
 
 Each narrative finding entry carries **all** of:
 - **ID** from `mechanical-findings.json` (e.g. `**UV-01**`)
