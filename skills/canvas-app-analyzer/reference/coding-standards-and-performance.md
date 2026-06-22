@@ -167,6 +167,21 @@ harder to audit and maintain — you cannot reliably search for "all global vari
 - `With` creates self-contained, scoped named values to break up complex formulas — preferred over
   context/global variables when a value is only needed locally. Recommend for deeply nested expressions.
 
+### Overuse of globals (OG, lead)  [Maintainability & naming]
+- An app with many global variables (`Set`) is a maintenance burden: globals survive across screens,
+  making data-flow hard to reason about, and they all initialise in `App.OnStart` (load-time cost).
+- **Alternatives to consider per variable:**
+  - **`UpdateContext`** (context variable, `loc` prefix) — screen-scoped; reset on each `Navigate`.
+    Prefer when a variable is only read/set on one screen.
+  - **Named formula in `App.Formulas`** — immutable, lazily evaluated; no `Set` needed. Prefer for
+    static computed values (user display name, environment label, etc.).
+  - **`With`** — single-formula scope; no variable declaration at all.
+- **Flag (`OG`, lead `L-NN`):** when the count of distinct globals exceeds `$T_GlobalOveruse`
+  (default 20, override `CAA_GLOBAL_OVERUSE`), emit one app-level lead. The model judges each
+  variable and recommends the best alternative. Not all globals are replaceable — stateful flags
+  (`gblBusy`, `gblSelected`) legitimately belong in global scope.
+- Source: §2 "App.OnStart -> App.Formulas" and "With function" above.
+
 ### Deep If/Switch nesting (`DI`, Medium, Confirmed)
 - Deeply nested `If`/`Switch` calls (e.g. `If(A, x, If(B, y, If(C, z, If(D, w, v))))`) are a
   readability and maintainability finding. Each additional nesting level forces the reader to hold

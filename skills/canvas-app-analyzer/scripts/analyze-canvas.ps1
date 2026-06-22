@@ -1733,6 +1733,23 @@ try {
         }
     }
 
+    # OG: overuse of globals (app-level lead, count-based trigger)
+    # Scoped to count-based app-level lead only for full determinism.
+    # Per-single-screen-global variant (a global read on exactly one screen may fit UpdateContext)
+    # is intentionally excluded - judgment needed per variable, handled via the hint text.
+    # Citation: s2 App.OnStart -> App.Formulas / With function guidance.
+    $ogGlobalCount = $globals.Keys.Count
+    if ($ogGlobalCount -gt $T_GlobalOveruse) {
+        [void]$leads.Add((New-Lead -Kind 'overuse-of-globals' -Category 'Maintainability & naming' `
+            -Screen 'App' -Control $null -Property $null -File $null -Line $null `
+            -Snippet $null `
+            -Hint ("$ogGlobalCount global variables declared (threshold: $T_GlobalOveruse). Consider whether some " +
+                   "could be context variables (UpdateContext/loc) scoped to a single screen, or named formulas " +
+                   "in App.Formulas (immutable, lazily evaluated, ~80% load win). " +
+                   "See coding-standards-and-performance.md s2 (App.OnStart -> App.Formulas / With function). " +
+                   "Judge per variable - not all globals are replaceable.")))
+    }
+
     # Stamp stable IDs on all findings and leads before emitting.
     Stamp-Ids -Findings $det -Leads $leads
 
