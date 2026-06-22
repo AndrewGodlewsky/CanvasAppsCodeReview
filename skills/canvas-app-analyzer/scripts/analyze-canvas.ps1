@@ -794,18 +794,86 @@ try {
                 -SortKey "$sn|$($rf.file)|1"))
         }
     }
-    # Unreferenced controls (Potential - pure-layout controls are legitimately unreferenced)
+    # Unreferenced controls (Potential) — behavior-aware per-control verdicts (D5)
+    # Citation: coding-standards-and-performance.md section 3 (Dead/unused controls)
+    # - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+    $urCitation = 'coding-standards-and-performance.md section 3 (Dead/unused controls) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+
+    # Known names that could appear in data-bound formulas: data sources, variables, collections,
+    # and component custom property names (bare tokens inside component formulas).
+    $knownDataNames = @(
+        @($dataSources | ForEach-Object { $_.name }) +
+        @($globals.Keys) +
+        @($contexts.Keys) +
+        @($collections.Keys) +
+        @($compCustomProps | ForEach-Object { $_.propName })
+    )
+
     foreach ($c in $controls) {
         if ($c.type -imatch 'Screen') { continue }
         $refs = ([regex]::Matches($allText, '(?<![\w.])' + [regex]::Escape($c.name) + '(?:\.|\b)')).Count
-        if ($refs -le 0) {
-            [void]$det.Add((New-Finding -Prefix 'UR' -Type 'unreferenced-control' `
-                -Category 'Dead / unused' -Severity 'Low' -Confidence 'Potential' -Tier 'enumeration' `
-                -Location @{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line } `
-                -Evidence "$($c.name) ($($c.type))" `
-                -Message "Control '$($c.name)' is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)" `
-                -SortKey "$($c.file)|$($c.line)|$($c.name)"))
+        if ($refs -gt 0) { continue }   # referenced — skip
+
+        # Gather all formula records for this control
+        $ctrlFms = @($formulas | Where-Object { $_.screen -eq $c.screen -and $_.control -eq $c.name })
+
+        # Signal 1: hasHandler — owns any OnXxx event with a non-false formula
+        $hasHandler = $false
+        foreach ($fm in ($ctrlFms | Where-Object { $_.property -match '^On[A-Z]' })) {
+            $norm = ($fm.text -replace '^=','').Trim()
+            if ($norm -ine 'false') { $hasHandler = $true; break }
         }
+
+        # Signal 2: dataBound — owns Items/DataSource/Default/Text/Value whose formula
+        # references a known data source, variable, collection, or component custom property
+        # (not a static string literal like ="hello").
+        $dataBound = $false
+        $dataBoundReason = ''
+        foreach ($fm in ($ctrlFms | Where-Object { $_.property -in @('Items','DataSource','Default','Text','Value') })) {
+            $fmCode = (Split-FormulaSpans $fm.text).Code
+            foreach ($dn in $knownDataNames) {
+                if ([string]::IsNullOrWhiteSpace($dn)) { continue }
+                if ([regex]::IsMatch($fmCode, '(?<![.\w])' + [regex]::Escape($dn) + '\b')) {
+                    $dataBound = $true
+                    $dataBoundReason = "surfaces data via $($fm.property)"
+                    break
+                }
+            }
+            if ($dataBound) { break }
+        }
+
+        # Signal 3: visibleByDefault — does NOT have Visible = false
+        $visibleByDefault = $true
+        $visFm = $ctrlFms | Where-Object { $_.property -ieq 'Visible' } | Select-Object -First 1
+        if ($visFm) {
+            $normVis = ($visFm.text -replace '^=','').Trim()
+            if ($normVis -ine 'false') { $visibleByDefault = $true } else { $visibleByDefault = $false }
+        }
+        # No Visible property = visible by default (true stays)
+
+        # Compute verdict
+        $verdict = $null
+        $reasons = @()
+        if (-not $hasHandler -and -not $dataBound -and -not $visibleByDefault) {
+            $verdict = 'strong-dead-candidate'
+            $urMsg = "Control '$($c.name)' is never referenced by any formula and has no active event handler, no data binding, and is permanently hidden - very likely dead weight. Remove or document."
+        } else {
+            $verdict = 'likely-decorative-or-layout'
+            if ($visibleByDefault) { $reasons += 'visible' }
+            if ($hasHandler)       { $reasons += 'has live event handler' }
+            if ($dataBound)        { $reasons += $dataBoundReason }
+            $reasonStr = $reasons -join '; '
+            $urMsg = "Control '$($c.name)' is never referenced by any formula but may be intentional ($reasonStr). Verify it is not dead (decorative/layout controls are fine unreferenced)."
+        }
+
+        [void]$det.Add((New-Finding -Prefix 'UR' -Type 'unreferenced-control' `
+            -Category 'Dead / unused' -Severity 'Low' -Confidence 'Potential' -Tier 'enumeration' `
+            -Citation $urCitation `
+            -Verdict $verdict `
+            -Location @{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line } `
+            -Evidence "$($c.name) ($($c.type))" `
+            -Message $urMsg `
+            -SortKey "$($c.file)|$($c.line)|$($c.name)"))
     }
 
     # --- Unused custom components (UK) - Medium, narrative ---

@@ -217,6 +217,14 @@ Screens:
                     Color: =RGBA(0, 0, 0, 1)
                     Size: =20
                     Text: ="Other content"
+            - lblAnchor:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="anchor"
+            - lblAnchorRef:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =lblAnchor.Text
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
