@@ -1518,7 +1518,8 @@ try {
 
     $evPatterns = @(
         [regex]::new('https?://', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase),
-        [regex]::new('[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'),
+        # Hex boundaries so a GUID-shaped substring of a longer hex run (e.g. a 40-char hash) is not mis-flagged.
+        [regex]::new('(?<![0-9a-fA-F])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![0-9a-fA-F])'),
         [regex]::new('\.sharepoint\.(com|test)', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase),
         [regex]::new('\.crm\d*\.dynamics\.com', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     )
