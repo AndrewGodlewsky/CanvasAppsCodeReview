@@ -115,5 +115,41 @@ Copy-Item $msapp (Join-Path $multi 'canvasapps\app_one\AppOne.msapp')
 Copy-Item $msapp (Join-Path $multi 'canvasapps\app_two\AppTwo.msapp')
 [System.IO.Compression.ZipFile]::CreateFromDirectory($multi, (Join-Path $fix 'MultiAppSolution.zip'))
 
+# ---- MaintainabilityKitchenSink: planted, known-count fixture (grown per detector) ----
+$ks = Join-Path $stage 'ks'; $ksSrc = Join-Path $ks 'Src'; $ksComp = Join-Path $ksSrc 'Components'; $ksDs = Join-Path $ks 'DataSources'
+New-Item -ItemType Directory -Path $ksComp,$ksDs -Force | Out-Null
+W (Join-Path $ksSrc 'App.pa.yaml') @'
+App:
+    Properties:
+        StartScreen: =MainScreen
+        OnStart: =Set(gblTitle, "Kitchen Sink")
+'@
+W (Join-Path $ksSrc 'MainScreen.pa.yaml') @'
+Screens:
+    MainScreen:
+        Children:
+            - lblTitle:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =gblTitle
+'@
+W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
+ComponentDefinitions:
+    cmpHeader:
+        Type: CanvasComponent
+        CustomProperties:
+            HeaderText:
+                PropertyKind: Input
+                DataType: Text
+        Children:
+            - lblHeader:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =cmpHeader.HeaderText
+'@
+W (Join-Path $ksDs 'Orders.json') '{"Name":"Orders","Type":"Table","ApiId":"/providers/microsoft.powerapps/apis/shared_sharepointonline"}'
+W (Join-Path $ks 'CanvasManifest.json') '{"Properties":{"Name":"MaintainabilityKitchenSink"}}'
+[System.IO.Compression.ZipFile]::CreateFromDirectory($ks, (Join-Path $fix 'MaintainabilityKitchenSink.msapp'))
+
 Remove-Item -Recurse -Force $stage
 Get-ChildItem $fix | ForEach-Object { $_.Name }
