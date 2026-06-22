@@ -188,6 +188,77 @@ $defaultNameRegex = '^(' + ($ControlTypeWords -join '|') + ')_?\d+$'
 # Functions that are non-delegable on every connector (high-confidence delegation leads)
 $alwaysLocalFns = @('FirstN','LastN','Last','Choices','Concat','GroupBy','Ungroup')
 
+# ---------------------------------------------------------------------------
+# Finding / Lead constructors + ID stamper (Task 6 / D3)
+# ---------------------------------------------------------------------------
+function New-Finding {
+    param(
+        [string]$Prefix,
+        [string]$Type,
+        [string]$Category,
+        [string]$Severity,
+        [string]$Confidence,
+        $Location,
+        [string]$Evidence,
+        [string]$Message,
+        [string]$SortKey,
+        [string]$Tier = 'enumeration',
+        [string]$Citation = $null,
+        $Verdict = $null
+    )
+    [pscustomobject]@{
+        id         = $null
+        prefix     = $Prefix
+        type       = $Type
+        category   = $Category
+        severity   = $Severity
+        confidence = $Confidence
+        tier       = $Tier
+        citation   = $Citation
+        verdict    = $Verdict
+        location   = $Location
+        evidence   = $Evidence
+        message    = $Message
+        sortKey    = [string]$SortKey
+    }
+}
+
+function New-Lead {
+    param($Kind,$Category,$Screen,$Control,$Property,$File,$Line,$Snippet,$Hint)
+    [pscustomobject]@{
+        id       = $null
+        prefix   = 'L'
+        category = $Category
+        kind     = $Kind
+        screen   = $Screen
+        control  = $Control
+        property = $Property
+        file     = $File
+        line     = $Line
+        snippet  = $Snippet
+        hint     = $Hint
+    }
+}
+
+function Stamp-Ids {
+    param(
+        [System.Collections.IEnumerable]$Findings,
+        [System.Collections.IEnumerable]$Leads
+    )
+    foreach ($grp in ($Findings | Group-Object prefix)) {
+        $i = 0
+        foreach ($f in ($grp.Group | Sort-Object sortKey)) {
+            $i++
+            $f.id = ('{0}-{1:D2}' -f $grp.Name, $i)
+        }
+    }
+    $j = 0
+    foreach ($l in ($Leads | Sort-Object @{e={$_.file}},@{e={[int]$_.line}},@{e={$_.kind}})) {
+        $j++
+        $l.id = ('L-{0:D2}' -f $j)
+    }
+}
+
 try {
     # Self-test shim: invoked as analyze-canvas.ps1 '__spans' with formula in
     # $env:CAA_SPANS_FORMULA (env var avoids PowerShell child-process quoting issues
@@ -577,26 +648,24 @@ try {
     # --- Default control names (Confirmed) ---
     foreach ($c in $controls) {
         if ($c.name -match $defaultNameRegex) {
-            [void]$det.Add([pscustomobject]@{
-                category='Maintainability & naming'; type='default-control-name'
-                severity='Medium'; confidence='Confirmed'
-                location=@{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line }
-                evidence="$($c.name) ($($c.type))"
-                message="Control '$($c.name)' uses a default auto-generated name. Rename with a 3-char type prefix + purpose, e.g. '$( ($c.type.Substring(0,[Math]::Min(3,$c.type.Length))).ToLower() )Purpose'."
-            })
+            [void]$det.Add((New-Finding -Prefix 'DN' -Type 'default-control-name' `
+                -Category 'Maintainability & naming' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+                -Location @{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line } `
+                -Evidence "$($c.name) ($($c.type))" `
+                -Message "Control '$($c.name)' uses a default auto-generated name. Rename with a 3-char type prefix + purpose, e.g. '$( ($c.type.Substring(0,[Math]::Min(3,$c.type.Length))).ToLower() )Purpose'." `
+                -SortKey "$($c.file)|$($c.line)|$($c.name)"))
         }
     }
     # --- Default screen names (Confirmed) ---
     foreach ($sn in $screenNames) {
         if ($sn -match '^(Screen)?_?\d+$' -or $sn -match '^Screen\d+$') {
             $rf = ($screenInfo | Where-Object { $_.name -eq $sn } | Select-Object -First 1)
-            [void]$det.Add([pscustomobject]@{
-                category='Maintainability & naming'; type='default-screen-name'
-                severity='Medium'; confidence='Confirmed'
-                location=@{ screen=$sn; control=$null; property=$null; file=($rf.file); line=1 }
-                evidence=$sn
-                message="Screen '$sn' uses a default name. Rename to plain language ending in 'Screen' (e.g. 'OrderDetailsScreen')."
-            })
+            [void]$det.Add((New-Finding -Prefix 'DS' -Type 'default-screen-name' `
+                -Category 'Maintainability & naming' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+                -Location @{ screen=$sn; control=$null; property=$null; file=($rf.file); line=1 } `
+                -Evidence $sn `
+                -Message "Screen '$sn' uses a default name. Rename to plain language ending in 'Screen' (e.g. 'OrderDetailsScreen')." `
+                -SortKey "$sn|$($rf.file)|1"))
         }
     }
     # --- Variable / collection prefix violations (Confirmed, Low) ---
@@ -604,59 +673,54 @@ try {
         $ok = if ($v.scope -eq 'global') { $v.name -clike 'gbl*' } else { $v.name -clike 'loc*' }
         if (-not $ok) {
             $want = if ($v.scope -eq 'global') { 'gbl' } else { 'loc' }
-            [void]$det.Add([pscustomobject]@{
-                category='Maintainability & naming'; type='variable-prefix'
-                severity='Low'; confidence='Confirmed'
-                location=@{ screen=$null; control=$null; property=$null; file=$v.definedIn; line=$null }
-                evidence="$($v.scope) variable '$($v.name)'"
-                message="$($v.scope) variable '$($v.name)' lacks the '$want' prefix convention."
-            })
+            [void]$det.Add((New-Finding -Prefix 'VP' -Type 'variable-prefix' `
+                -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Location @{ screen=$null; control=$null; property=$null; file=$v.definedIn; line=$null } `
+                -Evidence "$($v.scope) variable '$($v.name)'" `
+                -Message "$($v.scope) variable '$($v.name)' lacks the '$want' prefix convention." `
+                -SortKey "$($v.name)|$($v.definedIn)|"))
         }
     }
     foreach ($cl in $collectionList) {
         if (-not ($cl.name -clike 'col*')) {
-            [void]$det.Add([pscustomobject]@{
-                category='Maintainability & naming'; type='collection-prefix'
-                severity='Low'; confidence='Confirmed'
-                location=@{ screen=$null; control=$null; property=$null; file=$cl.definedIn; line=$null }
-                evidence="collection '$($cl.name)'"
-                message="Collection '$($cl.name)' lacks the 'col' prefix convention."
-            })
+            [void]$det.Add((New-Finding -Prefix 'VP' -Type 'collection-prefix' `
+                -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Location @{ screen=$null; control=$null; property=$null; file=$cl.definedIn; line=$null } `
+                -Evidence "collection '$($cl.name)'" `
+                -Message "Collection '$($cl.name)' lacks the 'col' prefix convention." `
+                -SortKey "$($cl.name)|$($cl.definedIn)|"))
         }
     }
 
     # --- Dead / unused (Confirmed for data; Potential for controls = layout judgment) ---
     foreach ($v in $variables) {
         if ($v.referenced -le 0) {
-            [void]$det.Add([pscustomobject]@{
-                category='Dead / unused'; type='unused-variable'
-                severity='Low'; confidence='Confirmed'
-                location=@{ screen=$null; control=$null; property=$null; file=$v.definedIn; line=$null }
-                evidence="$($v.scope) variable '$($v.name)'"
-                message="$($v.scope) variable '$($v.name)' is set but never read. Remove it or wire it up."
-            })
+            [void]$det.Add((New-Finding -Prefix 'UV' -Type 'unused-variable' `
+                -Category 'Dead / unused' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Location @{ screen=$null; control=$null; property=$null; file=$v.definedIn; line=$null } `
+                -Evidence "$($v.scope) variable '$($v.name)'" `
+                -Message "$($v.scope) variable '$($v.name)' is set but never read. Remove it or wire it up." `
+                -SortKey "$($v.name)|$($v.definedIn)|"))
         }
     }
     foreach ($cl in $collectionList) {
         if ($cl.referenced -le 0) {
-            [void]$det.Add([pscustomobject]@{
-                category='Dead / unused'; type='unused-collection'
-                severity='Low'; confidence='Confirmed'
-                location=@{ screen=$null; control=$null; property=$null; file=$cl.definedIn; line=$null }
-                evidence="collection '$($cl.name)'"
-                message="Collection '$($cl.name)' is built but never referenced. Remove the Collect/ClearCollect or use it."
-            })
+            [void]$det.Add((New-Finding -Prefix 'UC' -Type 'unused-collection' `
+                -Category 'Dead / unused' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Location @{ screen=$null; control=$null; property=$null; file=$cl.definedIn; line=$null } `
+                -Evidence "collection '$($cl.name)'" `
+                -Message "Collection '$($cl.name)' is built but never referenced. Remove the Collect/ClearCollect or use it." `
+                -SortKey "$($cl.name)|$($cl.definedIn)|"))
         }
     }
     foreach ($ds in $dataSources) {
         if ((Count-Refs $ds.name) -le 0) {
-            [void]$det.Add([pscustomobject]@{
-                category='Dead / unused'; type='unused-datasource'
-                severity='Low'; confidence='Confirmed'
-                location=@{ screen=$null; control=$null; property=$null; file='\DataSources'; line=$null }
-                evidence="data source '$($ds.name)' ($($ds.connector))"
-                message="Data source '$($ds.name)' is connected but never referenced in any formula. Remove the connection to shrink the app."
-            })
+            [void]$det.Add((New-Finding -Prefix 'UD' -Type 'unused-datasource' `
+                -Category 'Dead / unused' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Location @{ screen=$null; control=$null; property=$null; file='\DataSources'; line=$null } `
+                -Evidence "data source '$($ds.name)' ($($ds.connector))" `
+                -Message "Data source '$($ds.name)' is connected but never referenced in any formula. Remove the connection to shrink the app." `
+                -SortKey "$($ds.name)|\DataSources|"))
         }
     }
     # Orphan screens: never a Navigate target and not the start screen
@@ -666,13 +730,12 @@ try {
         $isStart  = ($startScreen -and ($startScreen -imatch ('\b' + [regex]::Escape($sn) + '\b')))
         if (-not $isTarget -and -not $isStart) {
             $rf = ($screenInfo | Where-Object { $_.name -eq $sn } | Select-Object -First 1)
-            [void]$det.Add([pscustomobject]@{
-                category='Dead / unused'; type='orphan-screen'
-                severity='Medium'; confidence='Potential'
-                location=@{ screen=$sn; control=$null; property=$null; file=($rf.file); line=1 }
-                evidence="screen '$sn'"
-                message="Screen '$sn' is never targeted by a Navigate() and is not the start screen. It may be an orphan (verify it isn't the default first screen or reached via a variable)."
-            })
+            [void]$det.Add((New-Finding -Prefix 'OS' -Type 'orphan-screen' `
+                -Category 'Dead / unused' -Severity 'Medium' -Confidence 'Potential' -Tier 'narrative' `
+                -Location @{ screen=$sn; control=$null; property=$null; file=($rf.file); line=1 } `
+                -Evidence "screen '$sn'" `
+                -Message "Screen '$sn' is never targeted by a Navigate() and is not the start screen. It may be an orphan (verify it isn't the default first screen or reached via a variable)." `
+                -SortKey "$sn|$($rf.file)|1"))
         }
     }
     # Unreferenced controls (Potential - pure-layout controls are legitimately unreferenced)
@@ -680,13 +743,12 @@ try {
         if ($c.type -imatch 'Screen') { continue }
         $refs = ([regex]::Matches($allText, '(?<![\w.])' + [regex]::Escape($c.name) + '(?:\.|\b)')).Count
         if ($refs -le 0) {
-            [void]$det.Add([pscustomobject]@{
-                category='Dead / unused'; type='unreferenced-control'
-                severity='Low'; confidence='Potential'
-                location=@{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line }
-                evidence="$($c.name) ($($c.type))"
-                message="Control '$($c.name)' is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
-            })
+            [void]$det.Add((New-Finding -Prefix 'UR' -Type 'unreferenced-control' `
+                -Category 'Dead / unused' -Severity 'Low' -Confidence 'Potential' -Tier 'enumeration' `
+                -Location @{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line } `
+                -Evidence "$($c.name) ($($c.type))" `
+                -Message "Control '$($c.name)' is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)" `
+                -SortKey "$($c.file)|$($c.line)|$($c.name)"))
         }
     }
 
@@ -705,13 +767,12 @@ try {
             $locs = @($grp | ForEach-Object { "$($_.screen)->$($_.control).$($_.property) ($($_.file):$($_.line))" })
             $first = $grp[0]
             $snip = if ($first.text.Length -gt 240) { $first.text.Substring(0,240) + ' ...' } else { $first.text }
-            [void]$det.Add([pscustomobject]@{
-                category='Redundancy & reuse'; type='exact-duplicate-formula'
-                severity='Medium'; confidence='Confirmed'
-                location=@{ screen=$first.screen; control=$first.control; property=$first.property; file=$first.file; line=$first.line }
-                evidence=$snip
-                message=("Identical formula repeated $($grp.Count) times: " + ($locs -join '; ') + ". Extract to a named formula (App.Formulas), a component, or a With() subexpression.")
-            })
+            [void]$det.Add((New-Finding -Prefix 'XD' -Type 'exact-duplicate-formula' `
+                -Category 'Redundancy & reuse' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+                -Location @{ screen=$first.screen; control=$first.control; property=$first.property; file=$first.file; line=$first.line } `
+                -Evidence $snip `
+                -Message ("Identical formula repeated $($grp.Count) times: " + ($locs -join '; ') + ". Extract to a named formula (App.Formulas), a component, or a With() subexpression.") `
+                -SortKey "$($first.file)|$($first.line)|$snip"))
         }
     }
 
@@ -736,31 +797,24 @@ try {
             $kind = if ($always) { 'non-delegable-always-local' } else { 'delegation-candidate' }
             $alwaysHint = if ($always) { " '$fn' is non-delegable on every connector." } else { '' }
             $delHint = "$fn on '$arg'. $srcHint Check delegation.md for the connector matrix. ALWAYS tag delegation findings 'Potential - verify row count'." + $alwaysHint
-            [void]$leads.Add([pscustomobject]@{
-                category='Delegation & data efficiency'; kind=$kind
-                screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
-                snippet=$snip
-                hint=$delHint
-            })
+            [void]$leads.Add((New-Lead -Kind $kind -Category 'Delegation & data efficiency' `
+                -Screen $fm.screen -Control $fm.control -Property $fm.property -File $fm.file -Line $fm.line `
+                -Snippet $snip -Hint $delHint))
         }
 
         # Performance: heavy App.OnStart
         if ($fm.screen -eq 'App' -and $fm.property -ieq 'OnStart') {
             $setN = ([regex]::Matches($t,'(?i)\bSet\s*\(')).Count
             $colN = ([regex]::Matches($t,'(?i)\b(?:Clear)?Collect\s*\(')).Count
-            [void]$leads.Add([pscustomobject]@{
-                category='Performance'; kind='heavy-onstart'
-                screen='App'; control='App'; property='OnStart'; file=$fm.file; line=$fm.line
-                snippet=$snip
-                hint="App.OnStart contains $setN Set() and $colN Collect() calls. Static initializations belong in App.Formulas (named formulas, ~80% load win). Keep Set only for state that changes. See coding-standards-and-performance.md."
-            })
+            [void]$leads.Add((New-Lead -Kind 'heavy-onstart' -Category 'Performance' `
+                -Screen 'App' -Control 'App' -Property 'OnStart' -File $fm.file -Line $fm.line `
+                -Snippet $snip `
+                -Hint "App.OnStart contains $setN Set() and $colN Collect() calls. Static initializations belong in App.Formulas (named formulas, ~80% load win). Keep Set only for state that changes. See coding-standards-and-performance.md."))
             if ($t -imatch '(?i)\bNavigate\s*\(') {
-                [void]$leads.Add([pscustomobject]@{
-                    category='Performance'; kind='navigate-in-onstart'
-                    screen='App'; control='App'; property='OnStart'; file=$fm.file; line=$fm.line
-                    snippet=$snip
-                    hint="Navigate() inside App.OnStart blocks first render until OnStart finishes. Replace with declarative App.StartScreen. (Confirmed pattern.)"
-                })
+                [void]$leads.Add((New-Lead -Kind 'navigate-in-onstart' -Category 'Performance' `
+                    -Screen 'App' -Control 'App' -Property 'OnStart' -File $fm.file -Line $fm.line `
+                    -Snippet $snip `
+                    -Hint "Navigate() inside App.OnStart blocks first render until OnStart finishes. Replace with declarative App.StartScreen. (Confirmed pattern.)"))
             }
         }
 
@@ -768,37 +822,34 @@ try {
         if ($fm.property -imatch '(OnStart|OnVisible|OnSelect)') {
             $ccN = ([regex]::Matches($t,'(?i)\b(?:Clear)?Collect\s*\(')).Count
             if ($ccN -ge 2 -and $t -notmatch '(?i)\bConcurrent\s*\(') {
-                [void]$leads.Add([pscustomobject]@{
-                    category='Performance'; kind='concurrent-opportunity'
-                    screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
-                    snippet=$snip
-                    hint="$ccN sequential Collect/ClearCollect calls. If independent, wrap in Concurrent() to wait only for the longest. Caveat: only when calls don't depend on each other."
-                })
+                [void]$leads.Add((New-Lead -Kind 'concurrent-opportunity' -Category 'Performance' `
+                    -Screen $fm.screen -Control $fm.control -Property $fm.property -File $fm.file -Line $fm.line `
+                    -Snippet $snip `
+                    -Hint "$ccN sequential Collect/ClearCollect calls. If independent, wrap in Concurrent() to wait only for the longest. Caveat: only when calls don't depend on each other."))
             }
         }
 
         # Performance: N+1 - data call inside ForAll
         foreach ($m in [regex]::Matches($t, '(?i)\bForAll\s*\(')) {
             if ($t -imatch '(?i)\b(LookUp|Filter|Search)\s*\(') {
-                [void]$leads.Add([pscustomobject]@{
-                    category='Performance'; kind='n-plus-1'
-                    screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
-                    snippet=$snip
-                    hint="A LookUp/Filter/Search appears inside ForAll - potential per-row (N+1) network calls. Batch with a single Collect up front, or reshape at the source. (Potential - high impact.)"
-                })
+                [void]$leads.Add((New-Lead -Kind 'n-plus-1' -Category 'Performance' `
+                    -Screen $fm.screen -Control $fm.control -Property $fm.property -File $fm.file -Line $fm.line `
+                    -Snippet $snip `
+                    -Hint "A LookUp/Filter/Search appears inside ForAll - potential per-row (N+1) network calls. Batch with a single Collect up front, or reshape at the source. (Potential - high impact.)"))
             }
         }
 
         # Error handling: mutation without IfError / Errors() in the same formula
         if ($t -imatch '(?i)\b(Patch|Collect|Remove|RemoveIf|UpdateIf|SubmitForm)\s*\(' -and $t -notmatch '(?i)\b(IfError|Errors)\s*\(') {
-            [void]$leads.Add([pscustomobject]@{
-                category='Error handling & resilience'; kind='unhandled-mutation'
-                screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line
-                snippet=$snip
-                hint="A data mutation (Patch/Collect/Remove/SubmitForm) with no IfError() wrapper or Errors() check nearby. Recommend user-facing error handling. (Potential - some operations are low-risk; judge.)"
-            })
+            [void]$leads.Add((New-Lead -Kind 'unhandled-mutation' -Category 'Error handling & resilience' `
+                -Screen $fm.screen -Control $fm.control -Property $fm.property -File $fm.file -Line $fm.line `
+                -Snippet $snip `
+                -Hint "A data mutation (Patch/Collect/Remove/SubmitForm) with no IfError() wrapper or Errors() check nearby. Recommend user-facing error handling. (Potential - some operations are low-risk; judge.)"))
         }
     }
+
+    # Stamp stable IDs on all findings and leads before emitting.
+    Stamp-Ids -Findings $det -Leads $leads
 
     # ============================================================================
     # EMIT: index.json, mechanical-findings.json, index.md, status.json
