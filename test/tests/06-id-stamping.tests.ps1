@@ -33,6 +33,9 @@ $lmap1 = ($mech.leads  | Sort-Object id | ForEach-Object { "$($_.id):$($_.kind):
 $lmap2 = ($mech2.leads | Sort-Object id | ForEach-Object { "$($_.id):$($_.kind):$($_.file):$($_.line)" }) -join '|'
 Assert-Equal $lmap1 $lmap2 'lead IDs stable across runs (DoD #10)'
 
+# --- Test 6b: all deterministic finding IDs are unique (no sortKey collision) -------
+Assert-Equal (@($mech.deterministicFindings.id | Sort-Object -Unique).Count) (@($mech.deterministicFindings).Count) 'all finding ids unique'
+
 # --- Test 6: also check MaintainabilityKitchenSink (well-formed IDs if any findings) ---
 $mkSink = Invoke-Analyzer -Fixture 'MaintainabilityKitchenSink.msapp'
 foreach ($f in $mkSink.deterministicFindings) {

@@ -224,7 +224,7 @@ function New-Finding {
 }
 
 function New-Lead {
-    param($Kind,$Category,$Screen,$Control,$Property,$File,$Line,$Snippet,$Hint)
+    param([string]$Kind,[string]$Category,$Screen,$Control,$Property,[string]$File,[string]$Line,[string]$Snippet,[string]$Hint)
     [pscustomobject]@{
         id       = $null
         prefix   = 'L'
@@ -253,7 +253,7 @@ function Stamp-Ids {
         }
     }
     $j = 0
-    foreach ($l in ($Leads | Sort-Object @{e={$_.file}},@{e={[int]$_.line}},@{e={$_.kind}})) {
+    foreach ($l in ($Leads | Sort-Object @{e={$_.file}},@{e={ if ($null -eq $_.line) { 0 } else { [int]$_.line } }},@{e={$_.kind}})) {
         $j++
         $l.id = ('L-{0:D2}' -f $j)
     }
@@ -665,7 +665,7 @@ try {
                 -Location @{ screen=$sn; control=$null; property=$null; file=($rf.file); line=1 } `
                 -Evidence $sn `
                 -Message "Screen '$sn' uses a default name. Rename to plain language ending in 'Screen' (e.g. 'OrderDetailsScreen')." `
-                -SortKey "$sn|$($rf.file)|1"))
+                -SortKey "$($rf.file)|1|$sn"))
         }
     }
     # --- Variable / collection prefix violations (Confirmed, Low) ---
@@ -772,7 +772,7 @@ try {
                 -Location @{ screen=$first.screen; control=$first.control; property=$first.property; file=$first.file; line=$first.line } `
                 -Evidence $snip `
                 -Message ("Identical formula repeated $($grp.Count) times: " + ($locs -join '; ') + ". Extract to a named formula (App.Formulas), a component, or a With() subexpression.") `
-                -SortKey "$($first.file)|$($first.line)|$snip"))
+                -SortKey "$($first.file)|$($first.line)|$k"))
         }
     }
 
