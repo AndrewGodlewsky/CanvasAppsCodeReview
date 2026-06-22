@@ -123,6 +123,7 @@ function Split-FormulaSpans {
     while ($i -lt $n) {
         $ch = $Text[$i]
         if ($ch -eq '"') {
+            $startIndex = $i   # save position of the opening quote
             $i++; $lit = New-Object System.Text.StringBuilder
             while ($i -lt $n) {
                 if ($Text[$i] -eq '"') {
@@ -134,8 +135,9 @@ function Split-FormulaSpans {
                 [void]$lit.Append($Text[$i]); $i++
             }
             [void]$strings.Add($lit.ToString())
-            # Replace the entire "..." token (quotes + content) with spaces to preserve column positions
-            [void]$code.Append(' ' * ($lit.Length + 2))
+            # Replace the entire "..." token with spaces equal to consumed input length,
+            # preserving column positions for all inputs (including "" escapes and unterminated literals).
+            [void]$code.Append(' ' * ($i - $startIndex))
         } else {
             [void]$code.Append($ch); $i++
         }

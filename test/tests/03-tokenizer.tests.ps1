@@ -37,4 +37,25 @@ Assert-True  (@($json3.Strings) -contains 'say "hi"') 'escaped double-quote ("")
 # --- Test 4: empty / null text ---
 $json4 = Invoke-Spans ''
 Assert-Equal $json4.Code '' 'empty input -> empty Code'
+Assert-True  (@($json4.Strings) -is [array]) 'empty input -> Strings is an array type'
 Assert-True  (@($json4.Strings).Count -eq 0) 'empty input -> empty Strings array'
+
+# --- Test 5: column invariant holds with escaped quote ("") ---
+# Input: =Concatenate("say ""hi""")
+# The "" pairs each consume 2 input chars but collapse to 1 char in $lit,
+# so the old $lit.Length+2 was shorter than the consumed input. The fix
+# uses (currentIndex - startIndex) so .Code.Length == $Text.Length always.
+$input5 = '=Concatenate("say ""hi""")'
+$json5 = Invoke-Spans $input5
+Assert-Equal $json5.Code.Length $input5.Length 'column invariant: .Code.Length == input length with escaped quotes'
+Assert-True  (@($json5.Strings) -contains 'say "hi"') 'escaped quote: .Strings still has unescaped content'
+
+# --- Test 6: unterminated string literal ---
+# Input: =Set(x, "abc
+# No closing quote -> the inner loop exits at end-of-text, consuming from " to EOT.
+# The old code would try to add $lit.Length+2 which includes a closing quote that was never there.
+# The fix uses (currentIndex - startIndex) so the count is exact.
+$input6 = '=Set(x, "abc'
+$json6 = Invoke-Spans $input6
+Assert-Equal $json6.Code.Length $input6.Length 'column invariant: .Code.Length == input length for unterminated literal'
+Assert-True  (@($json6.Strings) -contains 'abc') 'unterminated literal: content still captured in .Strings'
