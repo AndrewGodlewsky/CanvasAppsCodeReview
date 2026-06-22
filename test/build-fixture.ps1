@@ -172,6 +172,10 @@ Screens:
                         Set(gblBusy, true);
                         // Patch(Orders, Defaults(Orders), {Title: "x"});
                         Notify("done")
+            - cmpFooterInstance:
+                Control: cmpFooter
+                Properties:
+                    FooterText: ="hi"
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
@@ -186,6 +190,20 @@ ComponentDefinitions:
                 Control: Label@2.0.0
                 Properties:
                     Text: =cmpHeader.HeaderText
+'@
+W (Join-Path $ksComp 'cmpFooter.pa.yaml') @'
+ComponentDefinitions:
+    cmpFooter:
+        Type: CanvasComponent
+        CustomProperties:
+            FooterText:
+                PropertyKind: Input
+                DataType: Text
+        Children:
+            - lblFooter:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =cmpFooter.FooterText
 '@
 W (Join-Path $ksDs 'Orders.json') '{"Name":"Orders","Type":"Table","ApiId":"/providers/microsoft.powerapps/apis/shared_sharepointonline"}'
 W (Join-Path $ks 'CanvasManifest.json') '{"Properties":{"Name":"MaintainabilityKitchenSink"}}'

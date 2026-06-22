@@ -752,6 +752,35 @@ try {
         }
     }
 
+    # --- Unused custom components (UK) - Medium, narrative ---
+    # A component is DEFINED when its file stem appears in $compFiles.Keys.
+    # A component is INSTANTIATED when any control's type equals the component name
+    # (the parser records type = ($ctrlType -split '@')[0] from the Control: line).
+    # A component's own internal child controls have ordinary types (Label, Button, etc.)
+    # and their screen label equals the component name — they do NOT create a false
+    # "instantiated" signal because their type is 'Label', 'Button', etc., not 'cmpXxx'.
+    $ukCitation = 'coding-standards-and-performance.md section 5 (Components & reuse) - https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps | https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component'
+    $instantiatedComponentTypes = @($controls | ForEach-Object { $_.type } | Sort-Object -Unique)
+    foreach ($compName in @($compFiles.Keys)) {
+        if ([string]::IsNullOrWhiteSpace($compName)) { continue }
+        if ($instantiatedComponentTypes -notcontains $compName) {
+            # Determine the component's source file path
+            $compSrcFile = $paFiles | Where-Object {
+                ([System.IO.Path]::GetFileNameWithoutExtension($_.Name) -replace '\.pa$','') -ieq $compName
+            } | Select-Object -First 1
+            $compRelPath = if ($compSrcFile) {
+                ('src/' + $compSrcFile.FullName.Substring($srcDir.FullName.Length).TrimStart('\','/')) -replace '\\','/'
+            } else { 'src/Components' }
+            [void]$det.Add((New-Finding -Prefix 'UK' -Type 'unused-component' `
+                -Category 'Dead / unused' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+                -Citation $ukCitation `
+                -Location @{ screen=$compName; control=$null; property=$null; file=$compRelPath; line=1 } `
+                -Evidence "component '$compName'" `
+                -Message "Component '$compName' is defined but never instantiated on any screen. Either use it or delete the component file to reduce app size." `
+                -SortKey "$compRelPath|1|$compName"))
+        }
+    }
+
     # --- Commented-out code (CC) - Low, enumeration ---
     # Scans each formula's CODE spans (string literals blanked out so //inside-a-URL is ignored).
     # Flags // and /* */ comments whose content looks like code, NOT prose.

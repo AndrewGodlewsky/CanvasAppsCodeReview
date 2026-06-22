@@ -150,7 +150,25 @@ Flag (via reference counting across all `.pa.yaml`):
 - Note: error handling is partly a judgment call (some operations are low-risk) — tag confidence accordingly.
 
 ---
-## 5. Tooling cross-reference
+## 5. Components & reuse
+
+### Custom components — define once, use everywhere
+- Canvas app **components** (`ComponentDefinitions:` / `Type: CanvasComponent`) allow reusable UI
+  blocks to be defined once and instantiated on multiple screens. They reduce duplication, enforce
+  visual consistency, and cut formula-maintenance cost.
+- **Flag: defined but never used (`UK`).** A component file that exists in `\Src\Components\` but
+  is never instantiated on any screen is dead code — it increases app package size and confuses
+  future maintainers. Either instantiate it or delete it.
+- **Flag: missing component opportunities (`UP`).** Identical or near-identical control subtrees on
+  multiple screens should be extracted into a component (mirrors the XD / near-dup pattern at the
+  control level).
+- Sources:
+  - Build large & complex canvas apps (components section):
+    https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
+  - Create a component: https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component
+
+---
+## 6. Tooling cross-reference
 The **Power CAT Toolkit** is Microsoft's own code-review tool implementing much of this guidance (App
 Checker / Solution Checker likewise). Where useful, the report can note that a finding aligns with what
 those tools flag — reinforces that findings reflect Microsoft's own standards, not just model opinion.
