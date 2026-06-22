@@ -976,6 +976,46 @@ try {
         }
     }
 
+    # --- Duplicate / redundant controls (DC) - Medium, narrative, Confirmed ---
+    # Detects copy-paste control duplication: two or more controls of the same type whose
+    # complete property set (type + sorted propName=normalizedText pairs) is identical.
+    # A signature requires >=1 property so bare controls with no properties don't falsely collapse.
+    # Emits ONE finding per duplicate group listing all members.
+    # Citation: coding-standards-and-performance.md §2 (duplicated formulas/layouts) + §5 (Components)
+    $dcCitation = 'coding-standards-and-performance.md section 2 (Duplicate/redundant controls) + section 5 (Components & reuse) - https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps'
+    $dcSigMap = @{}   # signature -> list of {name, file, line}
+    foreach ($c in $controls) {
+        # Gather all properties for this control (screen+name match)
+        $ctrlFormulas = @($formulas | Where-Object { $_.screen -eq $c.screen -and $_.control -eq $c.name })
+        if ($ctrlFormulas.Count -lt 1) { continue }   # no properties → skip (avoids bare-control false groups)
+        # Build sorted prop=normalizedText pairs
+        $pairs = @($ctrlFormulas | ForEach-Object {
+            $norm = ($_.text -replace '\s+',' ').Trim()
+            "$($_.property)=$norm"
+        } | Sort-Object)
+        $sig = "$($c.type)|" + ($pairs -join '|')
+        if (-not $dcSigMap.ContainsKey($sig)) { $dcSigMap[$sig] = New-Object System.Collections.ArrayList }
+        [void]$dcSigMap[$sig].Add([pscustomobject]@{ name=$c.name; file=$c.file; line=$c.line; screen=$c.screen })
+    }
+    foreach ($sig in $dcSigMap.Keys) {
+        $grp = $dcSigMap[$sig]
+        if ($grp.Count -ge 2) {
+            $first = $grp[0]
+            $memberList = @($grp | ForEach-Object { "$($_.name) ($($_.file):$($_.line))" })
+            $evid = "Duplicate controls ($($grp.Count)): " + ($memberList -join '; ')
+            $msg  = "$($grp.Count) controls share an identical type and property set (likely copy-paste): " +
+                    ($memberList -join '; ') +
+                    ". Extract the repeated layout into a Canvas Component with input properties for the differing parts."
+            [void]$det.Add((New-Finding -Prefix 'DC' -Type 'duplicate-control' `
+                -Category 'Redundancy & reuse' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+                -Citation $dcCitation `
+                -Location @{ screen=$first.screen; control=$first.name; property=$null; file=$first.file; line=$first.line } `
+                -Evidence $evid `
+                -Message $msg `
+                -SortKey $sig))
+        }
+    }
+
     # --- Exact duplicate formulas (Confirmed, Redundancy) ---
     $byNorm = @{}
     foreach ($fm in $formulas) {

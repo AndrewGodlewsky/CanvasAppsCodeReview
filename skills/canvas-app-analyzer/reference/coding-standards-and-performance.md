@@ -131,6 +131,18 @@ Abbreviation table (from docs):
 - **Redundancy findings:** identical formula text repeated across controls/screens → extract to a named
   formula or a **component**; duplicated control/screen layouts → componentize.
 
+### Duplicate / redundant controls  [Confirmed → Redundancy]
+- Two or more controls of the **same type** with a **near-identical property set** are almost certainly
+  copy-paste duplicates. They cause silent drift — the maker updates one but forgets the other —
+  leading to inconsistent UX and compounding maintenance cost.
+- **Flag (`DC`, Medium, Confirmed):** group controls by a signature built from `type` + sorted
+  `propName=normalizedText` pairs (whitespace-collapsed). Any group with two or more members is a
+  redundancy finding. Emit **one finding per group** listing all member controls.
+- **Fix:** extract the repeated layout into a **Canvas Component** with input properties for the
+  parts that differ, then replace each duplicate with a component instance.
+- Source: section 2 above (split long / duplicated formulas) + section 5 (Components & reuse) —
+  https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
+
 ### With function  [Maintainability/Redundancy]
 - `With` creates self-contained, scoped named values to break up complex formulas — preferred over
   context/global variables when a value is only needed locally. Recommend for deeply nested expressions.

@@ -199,6 +199,24 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =If(gblTitle <> "", "has title", "no title")
+            - lblDupeA:
+                Control: Label@2.0.0
+                Properties:
+                    Color: =RGBA(0, 0, 0, 1)
+                    Size: =15
+                    Text: ="Same content"
+            - lblDupeB:
+                Control: Label@2.0.0
+                Properties:
+                    Color: =RGBA(0, 0, 0, 1)
+                    Size: =15
+                    Text: ="Same content"
+            - lblDifferent:
+                Control: Label@2.0.0
+                Properties:
+                    Color: =RGBA(0, 0, 0, 1)
+                    Size: =20
+                    Text: ="Other content"
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
