@@ -1,25 +1,15 @@
 ﻿{
     "deterministicFindings":  [
                                   {
-                                      "category":  "Maintainability \u0026 naming",
+                                      "id":  "DN-02",
+                                      "prefix":  "DN",
                                       "type":  "default-control-name",
+                                      "category":  "Maintainability \u0026 naming",
                                       "severity":  "Medium",
                                       "confidence":  "Confirmed",
-                                      "location":  {
-                                                       "control":  "Gallery1",
-                                                       "line":  4,
-                                                       "property":  null,
-                                                       "screen":  "DetailScreen",
-                                                       "file":  "src/DetailScreen.pa.yaml"
-                                                   },
-                                      "evidence":  "Gallery1 (Gallery)",
-                                      "message":  "Control \u0027Gallery1\u0027 uses a default auto-generated name. Rename with a 3-char type prefix + purpose, e.g. \u0027galPurpose\u0027."
-                                  },
-                                  {
-                                      "category":  "Maintainability \u0026 naming",
-                                      "type":  "default-control-name",
-                                      "severity":  "Medium",
-                                      "confidence":  "Confirmed",
+                                      "tier":  "narrative",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  "Button2",
                                                        "line":  10,
@@ -28,13 +18,40 @@
                                                        "file":  "src/HomeScreen.pa.yaml"
                                                    },
                                       "evidence":  "Button2 (Classic/Button)",
-                                      "message":  "Control \u0027Button2\u0027 uses a default auto-generated name. Rename with a 3-char type prefix + purpose, e.g. \u0027claPurpose\u0027."
+                                      "message":  "Control \u0027Button2\u0027 uses a default auto-generated name. Rename with a 3-char type prefix + purpose, e.g. \u0027claPurpose\u0027.",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|10|Button2"
                                   },
                                   {
+                                      "id":  "DN-01",
+                                      "prefix":  "DN",
+                                      "type":  "default-control-name",
                                       "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Medium",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "narrative",
+                                      "citation":  "",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "Gallery1",
+                                                       "line":  4,
+                                                       "property":  null,
+                                                       "screen":  "DetailScreen",
+                                                       "file":  "src/DetailScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Gallery1 (Gallery)",
+                                      "message":  "Control \u0027Gallery1\u0027 uses a default auto-generated name. Rename with a 3-char type prefix + purpose, e.g. \u0027galPurpose\u0027.",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|4|Gallery1"
+                                  },
+                                  {
+                                      "id":  "VP-01",
+                                      "prefix":  "VP",
                                       "type":  "variable-prefix",
+                                      "category":  "Maintainability \u0026 naming",
                                       "severity":  "Low",
                                       "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  null,
                                                        "line":  null,
@@ -43,13 +60,40 @@
                                                        "file":  "src/App.pa.yaml"
                                                    },
                                       "evidence":  "global variable \u0027unusedVar\u0027",
-                                      "message":  "global variable \u0027unusedVar\u0027 lacks the \u0027gbl\u0027 prefix convention."
+                                      "message":  "global variable \u0027unusedVar\u0027 lacks the \u0027gbl\u0027 prefix convention.",
+                                      "sortKey":  "unusedVar|src/App.pa.yaml|"
                                   },
                                   {
-                                      "category":  "Dead / unused",
-                                      "type":  "unused-variable",
+                                      "id":  "IN-01",
+                                      "prefix":  "IN",
+                                      "type":  "inconsistent-naming",
+                                      "category":  "Maintainability \u0026 naming",
                                       "severity":  "Low",
                                       "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Naming \u0026 maintainability / Inconsistent naming) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  null,
+                                                       "line":  null,
+                                                       "property":  null,
+                                                       "screen":  null,
+                                                       "file":  null
+                                                   },
+                                      "evidence":  "Inconsistent global variable naming: 1 without \u0027gbl\u0027 prefix (unusedVar) vs 2 with prefix (gblCount, gblUser)",
+                                      "message":  "global variable naming is inconsistent: 1 name(s) lack the \u0027gbl\u0027 prefix (unusedVar) while 2 name(s) correctly use it (gblCount, gblUser). Adopt the \u0027gbl\u0027 prefix consistently so variables can be located by prefix search.",
+                                      "sortKey":  "IN|global"
+                                  },
+                                  {
+                                      "id":  "UV-01",
+                                      "prefix":  "UV",
+                                      "type":  "unused-variable",
+                                      "category":  "Dead / unused",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  null,
                                                        "line":  null,
@@ -58,13 +102,19 @@
                                                        "file":  "src/HomeScreen.pa.yaml"
                                                    },
                                       "evidence":  "global variable \u0027gblCount\u0027",
-                                      "message":  "global variable \u0027gblCount\u0027 is set but never read. Remove it or wire it up."
+                                      "message":  "global variable \u0027gblCount\u0027 is set but never read. Remove it or wire it up.",
+                                      "sortKey":  "gblCount|src/HomeScreen.pa.yaml|"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "UV-02",
+                                      "prefix":  "UV",
                                       "type":  "unused-variable",
+                                      "category":  "Dead / unused",
                                       "severity":  "Low",
                                       "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  null,
                                                        "line":  null,
@@ -73,13 +123,19 @@
                                                        "file":  "src/App.pa.yaml"
                                                    },
                                       "evidence":  "global variable \u0027unusedVar\u0027",
-                                      "message":  "global variable \u0027unusedVar\u0027 is set but never read. Remove it or wire it up."
+                                      "message":  "global variable \u0027unusedVar\u0027 is set but never read. Remove it or wire it up.",
+                                      "sortKey":  "unusedVar|src/App.pa.yaml|"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "UC-01",
+                                      "prefix":  "UC",
                                       "type":  "unused-collection",
+                                      "category":  "Dead / unused",
                                       "severity":  "Low",
                                       "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  null,
                                                        "line":  null,
@@ -88,13 +144,19 @@
                                                        "file":  "src/App.pa.yaml"
                                                    },
                                       "evidence":  "collection \u0027colCustomers\u0027",
-                                      "message":  "Collection \u0027colCustomers\u0027 is built but never referenced. Remove the Collect/ClearCollect or use it."
+                                      "message":  "Collection \u0027colCustomers\u0027 is built but never referenced. Remove the Collect/ClearCollect or use it.",
+                                      "sortKey":  "colCustomers|src/App.pa.yaml|"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "UD-01",
+                                      "prefix":  "UD",
                                       "type":  "unused-datasource",
+                                      "category":  "Dead / unused",
                                       "severity":  "Low",
                                       "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  null,
                                                        "line":  null,
@@ -103,13 +165,19 @@
                                                        "file":  "\\DataSources"
                                                    },
                                       "evidence":  "data source \u0027Archive\u0027 (SharePoint)",
-                                      "message":  "Data source \u0027Archive\u0027 is connected but never referenced in any formula. Remove the connection to shrink the app."
+                                      "message":  "Data source \u0027Archive\u0027 is connected but never referenced in any formula. Remove the connection to shrink the app.",
+                                      "sortKey":  "Archive|\\DataSources|"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "OS-01",
+                                      "prefix":  "OS",
                                       "type":  "orphan-screen",
+                                      "category":  "Dead / unused",
                                       "severity":  "Medium",
                                       "confidence":  "Potential",
+                                      "tier":  "narrative",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  null,
                                                        "line":  1,
@@ -118,28 +186,19 @@
                                                        "file":  "src/OrphanScreen.pa.yaml"
                                                    },
                                       "evidence":  "screen \u0027OrphanScreen\u0027",
-                                      "message":  "Screen \u0027OrphanScreen\u0027 is never targeted by a Navigate() and is not the start screen. It may be an orphan (verify it isn\u0027t the default first screen or reached via a variable)."
+                                      "message":  "Screen \u0027OrphanScreen\u0027 is never targeted by a Navigate() and is not the start screen. It may be an orphan (verify it isn\u0027t the default first screen or reached via a variable).",
+                                      "sortKey":  "OrphanScreen|src/OrphanScreen.pa.yaml|1"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "UR-03",
+                                      "prefix":  "UR",
                                       "type":  "unreferenced-control",
+                                      "category":  "Dead / unused",
                                       "severity":  "Low",
                                       "confidence":  "Potential",
-                                      "location":  {
-                                                       "control":  "Gallery1",
-                                                       "line":  4,
-                                                       "property":  null,
-                                                       "screen":  "DetailScreen",
-                                                       "file":  "src/DetailScreen.pa.yaml"
-                                                   },
-                                      "evidence":  "Gallery1 (Gallery)",
-                                      "message":  "Control \u0027Gallery1\u0027 is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
-                                  },
-                                  {
-                                      "category":  "Dead / unused",
-                                      "type":  "unreferenced-control",
-                                      "severity":  "Low",
-                                      "confidence":  "Potential",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  "likely-decorative-or-layout",
                                       "location":  {
                                                        "control":  "btnSave",
                                                        "line":  9,
@@ -148,43 +207,19 @@
                                                        "file":  "src/DetailScreen.pa.yaml"
                                                    },
                                       "evidence":  "btnSave (Classic/Button)",
-                                      "message":  "Control \u0027btnSave\u0027 is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
+                                      "message":  "Control \u0027btnSave\u0027 is never referenced by any formula but may be intentional (visible; has live event handler). Verify it is not dead (decorative/layout controls are fine unreferenced).",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|9|btnSave"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "UR-04",
+                                      "prefix":  "UR",
                                       "type":  "unreferenced-control",
+                                      "category":  "Dead / unused",
                                       "severity":  "Low",
                                       "confidence":  "Potential",
-                                      "location":  {
-                                                       "control":  "lblSame",
-                                                       "line":  13,
-                                                       "property":  null,
-                                                       "screen":  "DetailScreen",
-                                                       "file":  "src/DetailScreen.pa.yaml"
-                                                   },
-                                      "evidence":  "lblSame (Label)",
-                                      "message":  "Control \u0027lblSame\u0027 is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
-                                  },
-                                  {
-                                      "category":  "Dead / unused",
-                                      "type":  "unreferenced-control",
-                                      "severity":  "Low",
-                                      "confidence":  "Potential",
-                                      "location":  {
-                                                       "control":  "galOrders",
-                                                       "line":  6,
-                                                       "property":  null,
-                                                       "screen":  "HomeScreen",
-                                                       "file":  "src/HomeScreen.pa.yaml"
-                                                   },
-                                      "evidence":  "galOrders (Gallery)",
-                                      "message":  "Control \u0027galOrders\u0027 is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
-                                  },
-                                  {
-                                      "category":  "Dead / unused",
-                                      "type":  "unreferenced-control",
-                                      "severity":  "Low",
-                                      "confidence":  "Potential",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  "likely-decorative-or-layout",
                                       "location":  {
                                                        "control":  "Button2",
                                                        "line":  10,
@@ -193,28 +228,61 @@
                                                        "file":  "src/HomeScreen.pa.yaml"
                                                    },
                                       "evidence":  "Button2 (Classic/Button)",
-                                      "message":  "Control \u0027Button2\u0027 is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
+                                      "message":  "Control \u0027Button2\u0027 is never referenced by any formula but may be intentional (visible; has live event handler). Verify it is not dead (decorative/layout controls are fine unreferenced).",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|10|Button2"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "UR-02",
+                                      "prefix":  "UR",
                                       "type":  "unreferenced-control",
+                                      "category":  "Dead / unused",
                                       "severity":  "Low",
                                       "confidence":  "Potential",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  "likely-decorative-or-layout",
                                       "location":  {
-                                                       "control":  "lblWelcome",
-                                                       "line":  15,
+                                                       "control":  "Gallery1",
+                                                       "line":  4,
+                                                       "property":  null,
+                                                       "screen":  "DetailScreen",
+                                                       "file":  "src/DetailScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Gallery1 (Gallery)",
+                                      "message":  "Control \u0027Gallery1\u0027 is never referenced by any formula but may be intentional (visible; has live event handler; surfaces data via Items). Verify it is not dead (decorative/layout controls are fine unreferenced).",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|4|Gallery1"
+                                  },
+                                  {
+                                      "id":  "UR-06",
+                                      "prefix":  "UR",
+                                      "type":  "unreferenced-control",
+                                      "category":  "Dead / unused",
+                                      "severity":  "Low",
+                                      "confidence":  "Potential",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  "likely-decorative-or-layout",
+                                      "location":  {
+                                                       "control":  "galOrders",
+                                                       "line":  6,
                                                        "property":  null,
                                                        "screen":  "HomeScreen",
                                                        "file":  "src/HomeScreen.pa.yaml"
                                                    },
-                                      "evidence":  "lblWelcome (Label)",
-                                      "message":  "Control \u0027lblWelcome\u0027 is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
+                                      "evidence":  "galOrders (Gallery)",
+                                      "message":  "Control \u0027galOrders\u0027 is never referenced by any formula but may be intentional (visible; surfaces data via Items). Verify it is not dead (decorative/layout controls are fine unreferenced).",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|6|galOrders"
                                   },
                                   {
-                                      "category":  "Dead / unused",
+                                      "id":  "UR-07",
+                                      "prefix":  "UR",
                                       "type":  "unreferenced-control",
+                                      "category":  "Dead / unused",
                                       "severity":  "Low",
                                       "confidence":  "Potential",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  "likely-decorative-or-layout",
                                       "location":  {
                                                        "control":  "lblOrphan",
                                                        "line":  4,
@@ -223,13 +291,82 @@
                                                        "file":  "src/OrphanScreen.pa.yaml"
                                                    },
                                       "evidence":  "lblOrphan (Label)",
-                                      "message":  "Control \u0027lblOrphan\u0027 is never referenced by any formula. If it is purely decorative/layout this is fine; otherwise it may be dead. (Verify.)"
+                                      "message":  "Control \u0027lblOrphan\u0027 is never referenced by any formula but may be intentional (visible). Verify it is not dead (decorative/layout controls are fine unreferenced).",
+                                      "sortKey":  "src/OrphanScreen.pa.yaml|4|lblOrphan"
                                   },
                                   {
+                                      "id":  "UR-01",
+                                      "prefix":  "UR",
+                                      "type":  "unreferenced-control",
+                                      "category":  "Dead / unused",
+                                      "severity":  "Low",
+                                      "confidence":  "Potential",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  "likely-decorative-or-layout",
+                                      "location":  {
+                                                       "control":  "lblSame",
+                                                       "line":  13,
+                                                       "property":  null,
+                                                       "screen":  "DetailScreen",
+                                                       "file":  "src/DetailScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "lblSame (Label)",
+                                      "message":  "Control \u0027lblSame\u0027 is never referenced by any formula but may be intentional (visible; surfaces data via Text). Verify it is not dead (decorative/layout controls are fine unreferenced).",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|13|lblSame"
+                                  },
+                                  {
+                                      "id":  "UR-05",
+                                      "prefix":  "UR",
+                                      "type":  "unreferenced-control",
+                                      "category":  "Dead / unused",
+                                      "severity":  "Low",
+                                      "confidence":  "Potential",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 3 (Dead / unused) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  "likely-decorative-or-layout",
+                                      "location":  {
+                                                       "control":  "lblWelcome",
+                                                       "line":  15,
+                                                       "property":  null,
+                                                       "screen":  "HomeScreen",
+                                                       "file":  "src/HomeScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "lblWelcome (Label)",
+                                      "message":  "Control \u0027lblWelcome\u0027 is never referenced by any formula but may be intentional (visible; surfaces data via Text). Verify it is not dead (decorative/layout controls are fine unreferenced).",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|15|lblWelcome"
+                                  },
+                                  {
+                                      "id":  "DC-01",
+                                      "prefix":  "DC",
+                                      "type":  "duplicate-control",
                                       "category":  "Redundancy \u0026 reuse",
-                                      "type":  "exact-duplicate-formula",
                                       "severity":  "Medium",
                                       "confidence":  "Confirmed",
+                                      "tier":  "narrative",
+                                      "citation":  "coding-standards-and-performance.md section 2 (Duplicate/redundant controls) + section 5 (Components \u0026 reuse) - https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "lblSame",
+                                                       "line":  13,
+                                                       "property":  null,
+                                                       "screen":  "DetailScreen",
+                                                       "file":  "src/DetailScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Duplicate controls (2): lblSame (src/DetailScreen.pa.yaml:13); lblWelcome (src/HomeScreen.pa.yaml:15)",
+                                      "message":  "2 controls share an identical type and property set (likely copy-paste): lblSame (src/DetailScreen.pa.yaml:13); lblWelcome (src/HomeScreen.pa.yaml:15). Extract the repeated layout into a Canvas Component with input properties for the differing parts.",
+                                      "sortKey":  "Label|Text==Concatenate(\"Hello \", gblUser, \" welcome to the application dashboard\")"
+                                  },
+                                  {
+                                      "id":  "XD-01",
+                                      "prefix":  "XD",
+                                      "type":  "exact-duplicate-formula",
+                                      "category":  "Redundancy \u0026 reuse",
+                                      "severity":  "Medium",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "narrative",
+                                      "citation":  "",
+                                      "verdict":  null,
                                       "location":  {
                                                        "control":  "lblSame",
                                                        "line":  16,
@@ -238,84 +375,288 @@
                                                        "file":  "src/DetailScreen.pa.yaml"
                                                    },
                                       "evidence":  "=Concatenate(\"Hello \", gblUser, \" welcome to the application dashboard\")",
-                                      "message":  "Identical formula repeated 2 times: DetailScreen-\u003elblSame.Text (src/DetailScreen.pa.yaml:16); HomeScreen-\u003elblWelcome.Text (src/HomeScreen.pa.yaml:18). Extract to a named formula (App.Formulas), a component, or a With() subexpression."
+                                      "message":  "Identical formula repeated 2 times: DetailScreen-\u003elblSame.Text (src/DetailScreen.pa.yaml:16); HomeScreen-\u003elblWelcome.Text (src/HomeScreen.pa.yaml:18). Extract to a named formula (App.Formulas), a component, or a With() subexpression.",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|16|=Concatenate(\"Hello \", gblUser, \" welcome to the application dashboard\")"
+                                  },
+                                  {
+                                      "id":  "MV-01",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "App",
+                                                       "line":  4,
+                                                       "property":  "OnStart",
+                                                       "screen":  "App",
+                                                       "file":  "src/App.pa.yaml"
+                                                   },
+                                      "evidence":  "42",
+                                      "message":  "Magic number literal 42 in App.OnStart. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/App.pa.yaml|4|App.OnStart|42|00001"
+                                  },
+                                  {
+                                      "id":  "MV-02",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "btnSave",
+                                                       "line":  12,
+                                                       "property":  "OnSelect",
+                                                       "screen":  "DetailScreen",
+                                                       "file":  "src/DetailScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "x",
+                                      "message":  "Magic string literal x in btnSave.OnSelect. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|12|btnSave.OnSelect|x|00002"
+                                  },
+                                  {
+                                      "id":  "MV-04",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "lblSame",
+                                                       "line":  16,
+                                                       "property":  "Text",
+                                                       "screen":  "DetailScreen",
+                                                       "file":  "src/DetailScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Hello ",
+                                      "message":  "Magic string literal Hello  in lblSame.Text. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|16|lblSame.Text|Hello |00003"
+                                  },
+                                  {
+                                      "id":  "MV-03",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "lblSame",
+                                                       "line":  16,
+                                                       "property":  "Text",
+                                                       "screen":  "DetailScreen",
+                                                       "file":  "src/DetailScreen.pa.yaml"
+                                                   },
+                                      "evidence":  " welcome to the application dashboard",
+                                      "message":  "Magic string literal  welcome to the application dashboard in lblSame.Text. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/DetailScreen.pa.yaml|16|lblSame.Text| welcome to the application dashboard|00004"
+                                  },
+                                  {
+                                      "id":  "MV-08",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "galOrders",
+                                                       "line":  9,
+                                                       "property":  "Items",
+                                                       "screen":  "HomeScreen",
+                                                       "file":  "src/HomeScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Open",
+                                      "message":  "Magic string literal Open in galOrders.Items. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|9|galOrders.Items|Open|00005"
+                                  },
+                                  {
+                                      "id":  "MV-05",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "Button2",
+                                                       "line":  14,
+                                                       "property":  "Text",
+                                                       "screen":  "HomeScreen",
+                                                       "file":  "src/HomeScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Go to details",
+                                      "message":  "Magic string literal Go to details in Button2.Text. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|14|Button2.Text|Go to details|00006"
+                                  },
+                                  {
+                                      "id":  "MV-07",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "lblWelcome",
+                                                       "line":  18,
+                                                       "property":  "Text",
+                                                       "screen":  "HomeScreen",
+                                                       "file":  "src/HomeScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Hello ",
+                                      "message":  "Magic string literal Hello  in lblWelcome.Text. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|18|lblWelcome.Text|Hello |00007"
+                                  },
+                                  {
+                                      "id":  "MV-06",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "lblWelcome",
+                                                       "line":  18,
+                                                       "property":  "Text",
+                                                       "screen":  "HomeScreen",
+                                                       "file":  "src/HomeScreen.pa.yaml"
+                                                   },
+                                      "evidence":  " welcome to the application dashboard",
+                                      "message":  "Magic string literal  welcome to the application dashboard in lblWelcome.Text. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/HomeScreen.pa.yaml|18|lblWelcome.Text| welcome to the application dashboard|00008"
+                                  },
+                                  {
+                                      "id":  "MV-09",
+                                      "prefix":  "MV",
+                                      "type":  "magic-value",
+                                      "category":  "Maintainability \u0026 naming",
+                                      "severity":  "Low",
+                                      "confidence":  "Confirmed",
+                                      "tier":  "enumeration",
+                                      "citation":  "coding-standards-and-performance.md section 1 (Magic values / Repeated literals) - general maintainability guidance: centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability",
+                                      "verdict":  null,
+                                      "location":  {
+                                                       "control":  "lblOrphan",
+                                                       "line":  7,
+                                                       "property":  "Text",
+                                                       "screen":  "OrphanScreen",
+                                                       "file":  "src/OrphanScreen.pa.yaml"
+                                                   },
+                                      "evidence":  "Nobody navigates here",
+                                      "message":  "Magic string literal Nobody navigates here in lblOrphan.Text. Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting.",
+                                      "sortKey":  "src/OrphanScreen.pa.yaml|7|lblOrphan.Text|Nobody navigates here|00009"
                                   }
                               ],
     "leads":  [
                   {
+                      "id":  "L-02",
+                      "prefix":  "L",
                       "category":  "Performance",
                       "kind":  "heavy-onstart",
                       "screen":  "App",
                       "control":  "App",
                       "property":  "OnStart",
                       "file":  "src/App.pa.yaml",
-                      "line":  4,
+                      "line":  "4",
                       "snippet":  "=Set(gblUser, User().FullName);\r\nClearCollect(colOrders, Orders);\r\nClearCollect(colCustomers, Customers);\r\nSet(unusedVar, 42);\r\nNavigate(HomeScreen, ScreenTransition.None)",
                       "hint":  "App.OnStart contains 2 Set() and 2 Collect() calls. Static initializations belong in App.Formulas (named formulas, ~80% load win). Keep Set only for state that changes. See coding-standards-and-performance.md."
                   },
                   {
+                      "id":  "L-03",
+                      "prefix":  "L",
                       "category":  "Performance",
                       "kind":  "navigate-in-onstart",
                       "screen":  "App",
                       "control":  "App",
                       "property":  "OnStart",
                       "file":  "src/App.pa.yaml",
-                      "line":  4,
+                      "line":  "4",
                       "snippet":  "=Set(gblUser, User().FullName);\r\nClearCollect(colOrders, Orders);\r\nClearCollect(colCustomers, Customers);\r\nSet(unusedVar, 42);\r\nNavigate(HomeScreen, ScreenTransition.None)",
                       "hint":  "Navigate() inside App.OnStart blocks first render until OnStart finishes. Replace with declarative App.StartScreen. (Confirmed pattern.)"
                   },
                   {
+                      "id":  "L-01",
+                      "prefix":  "L",
                       "category":  "Performance",
                       "kind":  "concurrent-opportunity",
                       "screen":  "App",
                       "control":  "App",
                       "property":  "OnStart",
                       "file":  "src/App.pa.yaml",
-                      "line":  4,
+                      "line":  "4",
                       "snippet":  "=Set(gblUser, User().FullName);\r\nClearCollect(colOrders, Orders);\r\nClearCollect(colCustomers, Customers);\r\nSet(unusedVar, 42);\r\nNavigate(HomeScreen, ScreenTransition.None)",
                       "hint":  "2 sequential Collect/ClearCollect calls. If independent, wrap in Concurrent() to wait only for the longest. Caveat: only when calls don\u0027t depend on each other."
                   },
                   {
+                      "id":  "L-04",
+                      "prefix":  "L",
                       "category":  "Delegation \u0026 data efficiency",
                       "kind":  "delegation-candidate",
                       "screen":  "DetailScreen",
                       "control":  "Gallery1",
                       "property":  "OnSelect",
                       "file":  "src/DetailScreen.pa.yaml",
-                      "line":  8,
+                      "line":  "8",
                       "snippet":  "=ForAll(colOrders, LookUp(Customers, Id = ThisRecord.CustId))",
                       "hint":  "LookUp on \u0027Customers\u0027. First arg \u0027Customers\u0027 resolves to a server data source. Check delegation.md for the connector matrix. ALWAYS tag delegation findings \u0027Potential - verify row count\u0027."
                   },
                   {
+                      "id":  "L-05",
+                      "prefix":  "L",
                       "category":  "Performance",
                       "kind":  "n-plus-1",
                       "screen":  "DetailScreen",
                       "control":  "Gallery1",
                       "property":  "OnSelect",
                       "file":  "src/DetailScreen.pa.yaml",
-                      "line":  8,
+                      "line":  "8",
                       "snippet":  "=ForAll(colOrders, LookUp(Customers, Id = ThisRecord.CustId))",
                       "hint":  "A LookUp/Filter/Search appears inside ForAll - potential per-row (N+1) network calls. Batch with a single Collect up front, or reshape at the source. (Potential - high impact.)"
                   },
                   {
+                      "id":  "L-06",
+                      "prefix":  "L",
                       "category":  "Error handling \u0026 resilience",
                       "kind":  "unhandled-mutation",
                       "screen":  "DetailScreen",
                       "control":  "btnSave",
                       "property":  "OnSelect",
                       "file":  "src/DetailScreen.pa.yaml",
-                      "line":  12,
+                      "line":  "12",
                       "snippet":  "=Patch(Orders, Defaults(Orders), {Title: \"x\"})",
                       "hint":  "A data mutation (Patch/Collect/Remove/SubmitForm) with no IfError() wrapper or Errors() check nearby. Recommend user-facing error handling. (Potential - some operations are low-risk; judge.)"
                   },
                   {
+                      "id":  "L-07",
+                      "prefix":  "L",
                       "category":  "Delegation \u0026 data efficiency",
                       "kind":  "delegation-candidate",
                       "screen":  "HomeScreen",
                       "control":  "galOrders",
                       "property":  "Items",
                       "file":  "src/HomeScreen.pa.yaml",
-                      "line":  9,
+                      "line":  "9",
                       "snippet":  "=Filter(Orders, Status = \"Open\")",
                       "hint":  "Filter on \u0027Orders\u0027. First arg \u0027Orders\u0027 resolves to a server data source. Check delegation.md for the connector matrix. ALWAYS tag delegation findings \u0027Potential - verify row count\u0027."
                   }
