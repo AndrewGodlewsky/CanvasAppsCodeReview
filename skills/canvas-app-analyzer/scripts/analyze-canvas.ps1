@@ -1461,6 +1461,51 @@ try {
             -SortKey ("{0}|{1}|{2}.{3}|{4}|{5:D5}" -f $lit.file,$lit.line,$lit.control,$lit.property,$lit.value,$mvOrd)))
     }
 
+    # --- Repeated literals (RL) - Medium, narrative, Confirmed ---
+    # A literal value (string or number) that appears in >= $T_RepeatedLiteralMin DISTINCT
+    # formulas is a centralization candidate: the constant should live in App.Formulas or
+    # a named global so every consumer references the name, not the value.
+    # "Distinct formulas" = distinct (file, line) pairs from $magicLiterals.
+    # Emits ONE finding per repeated value listing all locations (file:line).
+    # Emission order is deterministic: grouped values sorted before processing.
+    # Citation: coding-standards-and-performance.md §1 §2 (Repeated literals) — general
+    #   maintainability guidance: centralize repeated constants into a named formula
+    #   (App.Formulas) so changes propagate automatically:
+    #   https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+    $rlCitation = 'coding-standards-and-performance.md section 1/2 (Repeated literals) - centralize repeated constants into a named formula (App.Formulas): https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+
+    # Group $magicLiterals by value; count distinct (file|line) keys per group.
+    $rlByValue = @{}
+    foreach ($lit in $magicLiterals) {
+        $v = $lit.value
+        if (-not $rlByValue.ContainsKey($v)) { $rlByValue[$v] = New-Object System.Collections.ArrayList }
+        [void]$rlByValue[$v].Add($lit)
+    }
+
+    # Process groups in sorted-value order for deterministic output.
+    foreach ($v in ($rlByValue.Keys | Sort-Object)) {
+        $group = $rlByValue[$v]
+        # Count DISTINCT formulas by unique file|line key
+        $distinctKeys = @($group | ForEach-Object { "$($_.file)|$($_.line)" } | Sort-Object -Unique)
+        if ($distinctKeys.Count -lt $T_RepeatedLiteralMin) { continue }
+
+        # Build the location list from the first occurrence per distinct key, sorted.
+        $sortedLocs = @($group | Sort-Object @{e={$_.file}},@{e={[int]$_.line}} |
+            ForEach-Object { "$($_.file):$($_.line)" } | Select-Object -Unique)
+        $locStr  = $sortedLocs -join '; '
+        $kindLabel = ($group[0].kind)
+        $evid = "Value $v ($kindLabel) in $($distinctKeys.Count) formulas: $locStr"
+        $msg  = "Literal $v ($kindLabel) is hardcoded in $($distinctKeys.Count) distinct formulas ($locStr). Centralize it as a named formula in App.Formulas or a constant set in App.OnStart so changes propagate automatically."
+
+        [void]$det.Add((New-Finding -Prefix 'RL' -Type 'repeated-literal' `
+            -Category 'Maintainability & naming' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+            -Citation $rlCitation `
+            -Location @{ screen=$group[0].screen; control=$group[0].control; property=$group[0].property; file=$group[0].file; line=$group[0].line } `
+            -Evidence $evid `
+            -Message $msg `
+            -SortKey "RL|$v"))
+    }
+
     # ============================================================================
     # JUDGMENT LEADS (the model confirms/rejects using the bundled references)
     # ============================================================================

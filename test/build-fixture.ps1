@@ -245,6 +245,18 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =If(8675309 > 0, "Processing batch alpha", "https://magic.example.test/v2/orders")
+            - lblRepA:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="SharedConstantToken_RL"
+            - lblRepB:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =Concatenate("SharedConstantToken_RL", " suffix")
+            - lblRepC:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblZebra > 0, "SharedConstantToken_RL", "other")
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
