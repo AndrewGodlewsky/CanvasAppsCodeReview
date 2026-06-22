@@ -96,6 +96,29 @@ function Expand-ZipArchive {
 }
 
 # ---------------------------------------------------------------------------
+# Threshold constants — each seeded from a CAA_<UPPER_SNAKE> env var.
+# _Thr returns the env value as a number when it matches ^\d+(\.\d+)?$,
+# otherwise returns the hard-coded default.  Override examples:
+#   $env:CAA_LONG_FORMULA_BYTES = '300'   (tighten in CI)
+#   $env:CAA_NEAR_DUP_RATIO     = '0.85'
+# ---------------------------------------------------------------------------
+function _Thr([string]$name, [double]$default) {
+    $v = [Environment]::GetEnvironmentVariable("CAA_$name")
+    if ($v -and $v -match '^\d+(\.\d+)?$') { return [double]$v }
+    return $default
+}
+
+$T_LongFormulaBytes   = _Thr 'LONG_FORMULA_BYTES'   500   # flag single-property formulas wider than this many bytes
+$T_DeepIfDepth        = _Thr 'DEEP_IF_DEPTH'           4   # nested If/Switch depth that triggers a complexity lead
+$T_GodScreenControls  = _Thr 'GOD_SCREEN_CONTROLS'   40   # control count above which a screen is flagged as a god-screen
+$T_GodScreenBytes     = _Thr 'GOD_SCREEN_BYTES'    20000   # total formula-byte count above which a screen is flagged
+$T_ControlTreeDepth   = _Thr 'CONTROL_TREE_DEPTH'      5   # nesting depth at which a control-tree depth lead fires
+$T_RepeatedLiteralMin = _Thr 'REPEATED_LITERAL_MIN'    3   # minimum repetition count to flag a repeated string literal
+$T_NearDupRatio       = _Thr 'NEAR_DUP_RATIO'       0.90   # Jaccard similarity ratio above which formulas are near-duplicates
+$T_NearDupMinLen      = _Thr 'NEAR_DUP_MIN_LEN'       60   # minimum formula length (chars) before near-dup comparison runs
+$T_GlobalOveruse      = _Thr 'GLOBAL_OVERUSE'         20   # number of global variables above which a global-overuse lead fires
+
+# ---------------------------------------------------------------------------
 # Connector type mapping (best-effort; the model refines via \DataSources + leads)
 # ---------------------------------------------------------------------------
 function Resolve-Connector {
@@ -174,6 +197,24 @@ try {
     if ($Path -eq '__spans') {
         $formula = if ($env:CAA_SPANS_FORMULA -ne $null) { $env:CAA_SPANS_FORMULA } else { $AppName }
         (Split-FormulaSpans $formula) | ConvertTo-Json -Compress
+        exit 0
+    }
+
+    # Self-test shim: invoked as analyze-canvas.ps1 '__thresholds'
+    # Prints all resolved $T_* threshold values as compact JSON and exits 0.
+    # Normal analysis runs ($Path is a real file path) are completely unaffected.
+    if ($Path -eq '__thresholds') {
+        [ordered]@{
+            T_LongFormulaBytes   = $T_LongFormulaBytes
+            T_DeepIfDepth        = $T_DeepIfDepth
+            T_GodScreenControls  = $T_GodScreenControls
+            T_GodScreenBytes     = $T_GodScreenBytes
+            T_ControlTreeDepth   = $T_ControlTreeDepth
+            T_RepeatedLiteralMin = $T_RepeatedLiteralMin
+            T_NearDupRatio       = $T_NearDupRatio
+            T_NearDupMinLen      = $T_NearDupMinLen
+            T_GlobalOveruse      = $T_GlobalOveruse
+        } | ConvertTo-Json -Compress
         exit 0
     }
 
