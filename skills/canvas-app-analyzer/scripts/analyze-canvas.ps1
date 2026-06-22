@@ -264,15 +264,20 @@ try {
     function Get-Indent { param([string] $Line) ($Line -replace '^( *).*$', '$1').Length }
 
     foreach ($f in $paFiles) {
-        $isComponent = ($f.FullName -imatch '[\\/]Component[\\/]') -or ($f.Name -imatch 'Component')
+        $lines = Get-Content -LiteralPath $f.FullName
+        # Content/structure signal: a component-definition file declares a CanvasComponent node
+        # (ComponentDefinitions:, "Type: CanvasComponent", or a top-level CustomProperties block).
+        # Tolerate BOTH \Component\ and \Components\ folder spellings as a secondary signal.
+        $headText = ($lines | Select-Object -First 60) -join "`n"
+        $isComponent = ($headText -imatch '(?m)^\s*ComponentDefinitions\s*:') `
+            -or ($headText -imatch '(?im)Type\s*:\s*CanvasComponent') `
+            -or ($f.FullName -imatch '[\\/]Components?[\\/]')
         $isApp = $f.Name -ieq 'App.pa.yaml'
         # Logical "screen" label = file stem (docs: one [ScreenName].pa.yaml per screen).
         $screenLabel = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) -replace '\.pa$',''
         if ($isApp) { $screenLabel = 'App' }
         $relPath = (Join-Path 'src' ($f.FullName.Substring($srcDir.FullName.Length).TrimStart('\','/'))) -replace '\\','/'
         if ($isComponent) { $compFiles[$screenLabel] = $true }
-
-        $lines = Get-Content -LiteralPath $f.FullName
         $n = $lines.Count
 
         # Track the current control context via an indent stack of {indent,name}.
