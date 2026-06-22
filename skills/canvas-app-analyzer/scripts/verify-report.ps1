@@ -69,6 +69,7 @@ try {
 
     exit 0
 } catch {
-    @{ complete = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress
+    # Keep the same shape as the success path so callers can read .missing/.unaddressedLeads unconditionally
+    [ordered]@{ complete = $false; missing = @(); unaddressedLeads = @(); error = $_.Exception.Message } | ConvertTo-Json -Compress
     exit 0
 }
