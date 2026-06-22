@@ -284,6 +284,29 @@ threshold. Location is the screen; evidence states the control count and formula
 **Authority:** Build large & complex canvas apps:
 https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
 
+### Tight cross-screen coupling (XC, lead)
+
+A formula on one screen that references a control belonging to a **different** screen via
+property access (e.g. `lblOnSecond.Text` in a formula on `MainScreen` when `lblOnSecond` lives
+on `SecondScreen`) creates tight cross-screen coupling. This coupling is fragile: renaming or
+moving the referenced control silently breaks every formula that references it by name, and
+the dependency is invisible from the referenced screen.
+
+**Fix:** Decouple by routing the value through a shared medium both screens can access without
+direct control references:
+- **Global variable** (`Set(gblSharedValue, lblOnSecond.Text)` on the source screen;
+  read `gblSharedValue` on the referencing screen).
+- **Collection** — for tabular data shared across screens.
+- **Named formula** in `App.Formulas` — immutable, lazily evaluated, globally accessible.
+
+**Flag (`XC`, lead `L-NN`):** emit one lead per (formula, referenced-foreign-control) pair.
+Detection uses code spans (string-literal content is excluded) and a word-boundary regex
+`(?<![\w.])<controlName>\.` so only property accesses are matched, not name substrings.
+Controls whose names appear on multiple screens are skipped (ambiguous — cannot disambiguate).
+
+**Authority:** Build large & complex canvas apps:
+https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
+
 ---
 ## 6. Environment-specific values (High severity — breaks on deployment)
 

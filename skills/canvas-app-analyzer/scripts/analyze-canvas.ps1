@@ -1750,6 +1750,69 @@ try {
                    "Judge per variable - not all globals are replaceable.")))
     }
 
+    # --- XC: tight cross-screen coupling (lead, kind='cross-screen-coupling') ---
+    # Detects a formula on one screen that references a control belonging to a DIFFERENT
+    # screen via a property access (controlName.Property). Cross-screen control references
+    # create tight coupling: renaming or moving the referenced control silently breaks the
+    # formula, and the dependency is invisible from the referenced screen.
+    # Citation: working-with-large-apps (decouple via variables/collections/named formulas)
+    # https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
+    $xcCitation = 'coding-standards-and-performance.md section 5 (Tight cross-screen coupling) - decouple via global variables, collections, or named formulas (App.Formulas): https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps'
+
+    # Build a control-name -> screen map (skip ambiguous duplicates).
+    $xcCtrlMap = @{}   # name -> screen (or $null if ambiguous)
+    foreach ($c in $controls) {
+        if ($c.type -imatch 'Screen') { continue }   # skip screen-type pseudo-controls
+        $n = $c.name
+        if ($xcCtrlMap.ContainsKey($n)) {
+            if ($xcCtrlMap[$n] -ne $c.screen) {
+                $xcCtrlMap[$n] = $null   # ambiguous: same name on multiple screens - skip
+            }
+            # same screen: already recorded, leave as-is
+        } else {
+            $xcCtrlMap[$n] = $c.screen
+        }
+    }
+
+    foreach ($fm in $formulas) {
+        if ($compFiles.ContainsKey($fm.screen)) { continue }   # skip component formulas
+        $spans    = Split-FormulaSpans $fm.text
+        $codeText = $spans.Code
+
+        # Scan the code span for <controlName>. references (word-boundary before name, dot after).
+        # Track already-reported (formula, referencedControl) pairs so we emit at most ONE lead
+        # per cross-screen reference per formula.
+        $xcAlreadyReported = @{}
+        foreach ($ctrlName in $xcCtrlMap.Keys) {
+            $targetScreen = $xcCtrlMap[$ctrlName]
+            if ($null -eq $targetScreen) { continue }      # ambiguous - skip
+            if ($targetScreen -eq $fm.screen) { continue } # same screen - not XC
+
+            # Match: word boundary before the control name, then a literal dot (property access)
+            $pattern = '(?<![\w.])' + [regex]::Escape($ctrlName) + '\.'
+            if (-not [regex]::IsMatch($codeText, $pattern)) { continue }
+
+            # Deduplicate: only one lead per (formula-location, referenced-control) pair
+            $dedupKey = "$($fm.file)|$($fm.line)|$($fm.control)|$ctrlName"
+            if ($xcAlreadyReported.ContainsKey($dedupKey)) { continue }
+            $xcAlreadyReported[$dedupKey] = $true
+
+            $snipLen = [Math]::Min(200, $fm.text.Length)
+            $snip    = $fm.text.Substring(0, $snipLen) + $(if ($fm.text.Length -gt $snipLen) { ' ...' } else { '' })
+            $hint    = ("Cross-screen reference: $($fm.screen)/$($fm.control).$($fm.property) -> " +
+                        "$targetScreen/$ctrlName. " +
+                        "Referencing a control from another screen creates tight coupling: if $ctrlName " +
+                        "is renamed or moved, this formula silently breaks. " +
+                        "Decouple by storing the value in a global variable (Set), collection, or " +
+                        "named formula (App.Formulas) that both screens can read. " +
+                        "See $xcCitation")
+
+            [void]$leads.Add((New-Lead -Kind 'cross-screen-coupling' -Category 'Maintainability & naming' `
+                -Screen $fm.screen -Control $fm.control -Property $fm.property -File $fm.file -Line $fm.line `
+                -Snippet $snip -Hint $hint))
+        }
+    }
+
     # Stamp stable IDs on all findings and leads before emitting.
     Stamp-Ids -Findings $det -Leads $leads
 

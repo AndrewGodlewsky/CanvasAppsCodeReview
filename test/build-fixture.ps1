@@ -270,6 +270,19 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: ="just/a/relative/path and plain text"
+            - lblCrossRef:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =lblOnSecond.Text
+'@
+W (Join-Path $ksSrc 'SecondScreen.pa.yaml') @'
+Screens:
+    SecondScreen:
+        Children:
+            - lblOnSecond:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="on second screen"
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
