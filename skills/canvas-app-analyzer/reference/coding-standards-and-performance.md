@@ -151,6 +151,18 @@ Abbreviation table (from docs):
 - **Data sources:** Dataverse fastest (bypasses API Management); Excel connector caps at 2,000 records and
   is not a relational DB — flag Excel-as-database for transactional apps.
 
+### Dead conditional branches
+- An `If` call whose **first argument is the literal `true` or `false`** (not a variable or expression)
+  has a **permanently dead branch**. `If(false, A, B)` always evaluates to `B`; `If(true, A, B)` always
+  evaluates to `A`. The dead branch adds noise, misleads maintainers, and can hide logic that was never
+  intended to be disabled this way.
+- **Flag (`DB`, Low, Confirmed):** any formula (using code spans — string-literal content is excluded)
+  that matches `\bIf\s*\(\s*(false|true)\b` (case-insensitive). Emit one finding per formula, noting
+  the count of dead branches. Do NOT flag dynamic conditions such as `If(gblFlag, ...)` or
+  `If(someVar = 1, ...)`.
+- Source: code optimization / general coding guidelines —
+  https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-optimization
+
 ---
 ## 3. Dead / unused (high-confidence, mechanical)
 Flag (via reference counting across all `.pa.yaml`):

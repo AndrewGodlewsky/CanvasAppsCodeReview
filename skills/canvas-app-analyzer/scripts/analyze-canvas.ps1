@@ -949,6 +949,33 @@ try {
             -SortKey "$($fm.file)|$($fm.line)|$($fm.control)"))
     }
 
+    # --- Dead conditional branches (DB) - Low, enumeration, Confirmed ---
+    # A formula whose CODE span contains If(true, ...) or If(false, ...) has a permanently
+    # dead branch - the literal boolean makes one branch unreachable.
+    # Uses Split-FormulaSpans so "If(false,...)" inside a string literal is never matched.
+    # Word-boundary after the literal prevents matching If(falseFlag,...).
+    # Citation: coding-standards-and-performance.md section 2 (Dead conditional branches)
+    # - code optimization: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-optimization
+    $dbCitation = 'coding-standards-and-performance.md section 2 (Dead conditional branches) - general: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-optimization'
+    $dbPattern  = [regex]::new('\bIf\s*\(\s*(false|true)\b', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    foreach ($fm in $formulas) {
+        $spans      = Split-FormulaSpans $fm.text
+        $codeText   = $spans.Code
+        $dbHits     = @($dbPattern.Matches($codeText))
+        if ($dbHits.Count -gt 0) {
+            $countMsg = if ($dbHits.Count -eq 1) { '1 dead branch' } else { "$($dbHits.Count) dead branches" }
+            $evid     = "$($fm.control).$($fm.property): $($dbHits.Count) dead-branch If() call(s)"
+            $dbMsg    = "Dead conditional branch in $($fm.control).$($fm.property) - If() has a literal boolean as its condition ($countMsg). The dead branch is never evaluated; remove it or replace with the live result directly."
+            [void]$det.Add((New-Finding -Prefix 'DB' -Type 'dead-conditional-branch' `
+                -Category 'Dead / unused' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Citation $dbCitation `
+                -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
+                -Evidence $evid `
+                -Message $dbMsg `
+                -SortKey "$($fm.file)|$($fm.line)|$($fm.control).$($fm.property)"))
+        }
+    }
+
     # --- Exact duplicate formulas (Confirmed, Redundancy) ---
     $byNorm = @{}
     foreach ($fm in $formulas) {

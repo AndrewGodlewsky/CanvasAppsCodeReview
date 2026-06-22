@@ -191,6 +191,14 @@ Screens:
                 Properties:
                     Visible: =gblTitle <> ""
                     Text: ="maybe shown"
+            - lblDead:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(false, "never", "always")
+            - lblLive:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblTitle <> "", "has title", "no title")
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
