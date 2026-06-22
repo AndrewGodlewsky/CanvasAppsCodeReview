@@ -1443,8 +1443,13 @@ try {
     #   or named constants (global variables set once in App.OnStart).
     # - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
     $mvCitation = 'coding-standards-and-performance.md section 1 (Code readability / Magic values) - centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    # $mvOrd disambiguates the sortKey when the SAME literal value appears twice at the
+    # same file/line/control/property (e.g. If(x, "retry", "retry")) so each occurrence
+    # still gets a unique, stable id. $magicLiterals build order is deterministic.
+    $mvOrd = 0
     foreach ($lit in $magicLiterals) {
-        $kindLabel = if ($lit.kind -eq 'string') { 'string' } else { 'number' }
+        $mvOrd++
+        $kindLabel = $lit.kind
         $evid = $lit.value
         $msg  = "Magic $kindLabel literal $($lit.value) in $($lit.control).$($lit.property). Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting."
         [void]$det.Add((New-Finding -Prefix 'MV' -Type 'magic-value' `
@@ -1453,7 +1458,7 @@ try {
             -Location @{ screen=$lit.screen; control=$lit.control; property=$lit.property; file=$lit.file; line=$lit.line } `
             -Evidence $evid `
             -Message $msg `
-            -SortKey "$($lit.file)|$($lit.line)|$($lit.control).$($lit.property)|$($lit.value)"))
+            -SortKey ("{0}|{1}|{2}.{3}|{4}|{5:D5}" -f $lit.file,$lit.line,$lit.control,$lit.property,$lit.value,$mvOrd)))
     }
 
     # ============================================================================
