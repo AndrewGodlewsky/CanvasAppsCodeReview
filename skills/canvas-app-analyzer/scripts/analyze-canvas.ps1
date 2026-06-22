@@ -1579,6 +1579,29 @@ try {
             -SortKey "$($si.file)|1|$($si.name)"))
     }
 
+    # --- Deep control-tree nesting (CT) - Low, enumeration, Confirmed ---
+    # A control whose nesting depth in the control tree meets or exceeds
+    # $T_ControlTreeDepth is flagged. Deeply nested containers hurt render
+    # performance and maintainability (working-with-large-apps guidance).
+    # Reuses the `depth` and `ancestors` fields populated by the parser (Task 4).
+    # Citation: coding-standards-and-performance.md §5 (Deep control-tree nesting) —
+    #   Build large & complex canvas apps (deeply nested containers hurt render + maintainability):
+    #   https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps
+    $ctCitation = 'coding-standards-and-performance.md section 5 (Deep control-tree nesting) - deeply nested containers hurt render performance and maintainability; flatten by extracting to Canvas Components: https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps'
+    foreach ($c in $controls) {
+        if ($c.depth -lt $T_ControlTreeDepth) { continue }
+        $ancestorStr = if ($c.ancestors -and $c.ancestors.Count -gt 0) { ' (ancestors: ' + ($c.ancestors -join ' > ') + ')' } else { '' }
+        $evid = "depth $($c.depth)$ancestorStr"
+        $msg  = "Control '$($c.name)' is nested $($c.depth) levels deep in the control tree (threshold: $T_ControlTreeDepth). Deeply nested containers slow rendering. Flatten the layout or extract the nested group into a Canvas Component."
+        [void]$det.Add((New-Finding -Prefix 'CT' -Type 'deep-control-tree-nesting' `
+            -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+            -Citation $ctCitation `
+            -Location @{ screen=$c.screen; control=$c.name; property=$null; file=$c.file; line=$c.line } `
+            -Evidence $evid `
+            -Message $msg `
+            -SortKey "$($c.file)|$($c.line)|$($c.name)"))
+    }
+
     # ============================================================================
     # JUDGMENT LEADS (the model confirms/rejects using the bundled references)
     # ============================================================================
