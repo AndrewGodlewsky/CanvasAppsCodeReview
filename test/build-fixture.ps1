@@ -150,6 +150,16 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =CountRows(colZebra) + CountRows(colApple)
+            - conOuter:
+                Control: GroupContainer@1.3.0
+                Children:
+                    - conInner:
+                        Control: GroupContainer@1.3.0
+                        Children:
+                            - lblDeep:
+                                Control: Label@2.0.0
+                                Properties:
+                                    Text: ="deep"
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

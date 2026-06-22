@@ -328,6 +328,9 @@ try {
 
         # Track the current control context via an indent stack of {indent,name}.
         $stack = New-Object System.Collections.Stack
+        # Control-only stack: tracks only control nodes (not structural YAML nodes like
+        # Children:/Properties:/Screens:). Used to compute nesting depth and ancestors.
+        $ctrlStack = New-Object System.Collections.Stack
         $curControl = $null
 
         for ($i = 0; $i -lt $n; $i++) {
@@ -338,6 +341,8 @@ try {
 
             # Pop stack entries that are at >= current indent (we've left their scope)
             while ($stack.Count -gt 0 -and $stack.Peek().Indent -ge $indent) { [void]$stack.Pop() }
+            # Also pop the control-only stack for any controls whose scope we've left
+            while ($ctrlStack.Count -gt 0 -and $ctrlStack.Peek().Indent -ge $indent) { [void]$ctrlStack.Pop() }
 
             # Control declaration: a node key whose next meaningful child is "Control:"
             # Node key forms:  "- Name:"  or  "Name:"
@@ -357,10 +362,17 @@ try {
                 }
                 $stack.Push([pscustomobject]@{ Indent = $indent; Name = $key })
                 if ($isCtrl) {
+                    # Depth = number of control ancestors + 1 (top-level control = 1)
+                    $depth = $ctrlStack.Count + 1
+                    # Ancestors: root-first array of control names (Stack.ToArray() is top-first, so reverse)
+                    $ancestors = @($ctrlStack.ToArray() | ForEach-Object { $_.Name })
+                    [array]::Reverse($ancestors)
+                    $ctrlStack.Push([pscustomobject]@{ Indent = $indent; Name = $key })
                     $curControl = $key
                     $typeShort = ($ctrlType -split '@')[0]
                     [void]$controls.Add([pscustomobject]@{
                         name = $key; type = $typeShort; screen = $screenLabel; file = $relPath; line = ($i + 1)
+                        depth = $depth; ancestors = $ancestors
                     })
                 }
                 continue
@@ -392,9 +404,9 @@ try {
                     $text = $sb.ToString().Trim()
                 }
                 if (-not [string]::IsNullOrWhiteSpace($text)) {
-                    # Determine owning control: nearest control on the stack, else screen root
-                    $owner = $curControl
-                    if (-not $owner) { $owner = $screenLabel }
+                    # Determine owning control: nearest control ancestor from the control-only
+                    # stack; fall back to the screen label when outside any control scope.
+                    $owner = if ($ctrlStack.Count -gt 0) { $ctrlStack.Peek().Name } else { $screenLabel }
                     [void]$formulas.Add([pscustomobject]@{
                         screen = $screenLabel; control = $owner; property = $propName
                         file = $relPath; line = $startLine; text = $text
@@ -758,7 +770,7 @@ try {
         }
         startScreen = $startScreen
         screens = @($screenInfo)
-        controls = @($controls | ForEach-Object { [ordered]@{ name=$_.name; type=$_.type; screen=$_.screen; isDefaultName=([bool]($_.name -match $defaultNameRegex)) } })
+        controls = @($controls | ForEach-Object { [ordered]@{ name=$_.name; type=$_.type; screen=$_.screen; depth=$_.depth; isDefaultName=([bool]($_.name -match $defaultNameRegex)) } })
         dataSources = @($dataSources | ForEach-Object { [ordered]@{ name=$_.name; connector=$_.connector } })
         collections = @($collectionList)
         variables = @($variables)
