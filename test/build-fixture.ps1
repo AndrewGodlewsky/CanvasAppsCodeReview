@@ -241,6 +241,10 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =If(gblUser <> "" && gblTitle <> "", Concatenate(gblUser, " - ", gblTitle, " - ", "main homepage view - active"), Concatenate("Guest", " - ", "main homepage view - inactive"))
+            - lblMagic:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(8675309 > 0, "Processing batch alpha", "https://magic.example.test/v2/orders")
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

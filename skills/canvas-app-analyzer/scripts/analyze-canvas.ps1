@@ -1398,6 +1398,65 @@ try {
     }
 
     # ============================================================================
+    # MAGIC LITERALS: reusable extraction (consumed by MV here; RL/EV in Tasks 22-23)
+    # ============================================================================
+    # Build a flat list of every hardcoded literal occurrence across all formulas.
+    # Each record: { value, kind('string'|'number'), file, line, screen, control, property }
+    # String literals: every non-empty entry from Split-FormulaSpans .Strings.
+    # Numeric literals: numbers in the .Code span whose |value| is not in {0, 1}.
+    #   RGBA/ColorValue argument spans are removed from the code text before scanning
+    #   so color-component numbers (e.g. RGBA(255,0,128,1)) are not flagged.
+    $magicLiterals = New-Object System.Collections.ArrayList
+    $mvNumPattern  = [regex]::new('(?<![\w.])-?\d+(\.\d+)?')
+    $mvRgbaPattern = [regex]::new('(?i)\b(?:RGBA|ColorValue)\s*\([^)]*\)')
+
+    foreach ($fm in $formulas) {
+        $spans    = Split-FormulaSpans $fm.text
+        $location = @{
+            file     = $fm.file
+            line     = $fm.line
+            screen   = $fm.screen
+            control  = $fm.control
+            property = $fm.property
+        }
+
+        # STRING literals: each non-empty string from the span extractor
+        foreach ($s in $spans.Strings) {
+            if ([string]::IsNullOrEmpty($s)) { continue }
+            [void]$magicLiterals.Add([pscustomobject](@{ value=$s; kind='string' } + $location))
+        }
+
+        # NUMERIC literals: scan the code span with RGBA/ColorValue spans removed
+        $codeForNums = $mvRgbaPattern.Replace($spans.Code, ' ')
+        foreach ($m in $mvNumPattern.Matches($codeForNums)) {
+            $numVal = [double]$m.Value
+            $absVal = [Math]::Abs($numVal)
+            if ($absVal -eq 0 -or $absVal -eq 1) { continue }   # trivial exclusions
+            [void]$magicLiterals.Add([pscustomobject](@{ value=$m.Value; kind='number' } + $location))
+        }
+    }
+
+    # --- Magic values (MV) - Low, enumeration, Confirmed ---
+    # Each magic literal occurrence is its own MV finding.
+    # Citation: coding-standards-and-performance.md §1 "Code readability" —
+    #   Magic values: centralize hardcoded literals into named formulas (App.Formulas)
+    #   or named constants (global variables set once in App.OnStart).
+    # - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+    $mvCitation = 'coding-standards-and-performance.md section 1 (Code readability / Magic values) - centralize hardcoded literals into named formulas (App.Formulas) or constants: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    foreach ($lit in $magicLiterals) {
+        $kindLabel = if ($lit.kind -eq 'string') { 'string' } else { 'number' }
+        $evid = $lit.value
+        $msg  = "Magic $kindLabel literal $($lit.value) in $($lit.control).$($lit.property). Consider extracting to a named formula (App.Formulas) or a named constant so the value is centralized and self-documenting."
+        [void]$det.Add((New-Finding -Prefix 'MV' -Type 'magic-value' `
+            -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+            -Citation $mvCitation `
+            -Location @{ screen=$lit.screen; control=$lit.control; property=$lit.property; file=$lit.file; line=$lit.line } `
+            -Evidence $evid `
+            -Message $msg `
+            -SortKey "$($lit.file)|$($lit.line)|$($lit.control).$($lit.property)|$($lit.value)"))
+    }
+
+    # ============================================================================
     # JUDGMENT LEADS (the model confirms/rejects using the bundled references)
     # ============================================================================
     $leads = New-Object System.Collections.ArrayList
