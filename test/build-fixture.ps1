@@ -181,6 +181,16 @@ Screens:
                 Properties:
                     OnSelect: =false
                     Text: ="stub"
+            - lblHidden:
+                Control: Label@2.0.0
+                Properties:
+                    Visible: =false
+                    Text: ="never shown"
+            - lblDynamic:
+                Control: Label@2.0.0
+                Properties:
+                    Visible: =gblTitle <> ""
+                    Text: ="maybe shown"
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

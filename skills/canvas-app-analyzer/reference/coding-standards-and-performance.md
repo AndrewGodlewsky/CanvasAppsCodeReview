@@ -140,6 +140,13 @@ Abbreviation table (from docs):
   tables with unused columns is a payload finding.
 - **Enhanced performance for hidden controls** (default since Dec 2022): controls not initially visible
   aren't rendered — note if an old app predates/disabled it.
+- **Permanently hidden controls (`HC`, Low, Confirmed):** a control whose `Visible` property formula
+  is the literal `false` is _never_ rendered. If intentional (e.g. a placeholder under construction),
+  document the reason in a comment on that formula. If unintentional, either wire up a dynamic
+  visibility expression or remove the control entirely — leaving it in increases app package size and
+  can confuse future maintainers. This is a general maintainability concern; see
+  https://learn.microsoft.com/power-apps/maker/canvas-apps/performance-tips for the hidden-control
+  rendering optimisation context.
 - **Defer significant updates** to a non-blocking UI step (progress signal) rather than blocking the user.
 - **Data sources:** Dataverse fastest (bypasses API Management); Excel connector caps at 2,000 records and
   is not a relational DB — flag Excel-as-database for transactional apps.

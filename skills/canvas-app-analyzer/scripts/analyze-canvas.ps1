@@ -928,6 +928,27 @@ try {
             -SortKey "$($fm.file)|$($fm.line)|$($fm.control).$($fm.property)"))
     }
 
+    # --- Permanently hidden controls (HC) - Low, enumeration, Confirmed ---
+    # A control whose Visible property formula normalises to the literal "false" is
+    # permanently hidden: it is never rendered and cannot be reached by the user.
+    # If intentional the reason should be documented in a comment; if unintentional the
+    # control is dead weight that increases package size and can mislead maintainers.
+    # Citation: coding-standards-and-performance.md section 2 (Permanently hidden controls)
+    # - performance-tips reference: https://learn.microsoft.com/power-apps/maker/canvas-apps/performance-tips
+    $hcCitation = 'coding-standards-and-performance.md section 2 (Permanently hidden controls) - general maintainability guidance: https://learn.microsoft.com/power-apps/maker/canvas-apps/performance-tips'
+    foreach ($fm in $formulas) {
+        if ($fm.property -ine 'Visible') { continue }
+        $normalized = ($fm.text -replace '^=','').Trim()
+        if ($normalized -ine 'false') { continue }
+        [void]$det.Add((New-Finding -Prefix 'HC' -Type 'permanently-hidden-control' `
+            -Category 'Dead / unused' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+            -Citation $hcCitation `
+            -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
+            -Evidence "$($fm.control).Visible = false" `
+            -Message "Control '$($fm.control)' has Visible permanently set to 'false'. If intentional, document the reason in a comment; otherwise remove the control or wire up a dynamic visibility expression." `
+            -SortKey "$($fm.file)|$($fm.line)|$($fm.control)"))
+    }
+
     # --- Exact duplicate formulas (Confirmed, Redundancy) ---
     $byNorm = @{}
     foreach ($fm in $formulas) {
