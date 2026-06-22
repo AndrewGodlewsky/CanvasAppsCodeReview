@@ -199,6 +199,9 @@ ComponentDefinitions:
             FooterText:
                 PropertyKind: Input
                 DataType: Text
+            UnusedProp:
+                PropertyKind: Input
+                DataType: Text
         Children:
             - lblFooter:
                 Control: Label@2.0.0

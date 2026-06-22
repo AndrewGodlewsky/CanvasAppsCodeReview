@@ -531,6 +531,62 @@ try {
     # Sort controls deterministically so position-based IDs (added later) are stable.
     $controls = @($controls | Sort-Object name, file, line)
 
+    # ============================================================================
+    # CUSTOM PROPERTIES: collect (componentName, propName) pairs from component files.
+    # CustomProperties: block in a .pa.yaml component file lists each prop as a child key.
+    # Structure:
+    #   CustomProperties:            <- marker line at indent N
+    #       FooterText:              <- direct child at indent N+step (= property name)
+    #           PropertyKind: Input  <- metadata at indent N+step+step (skipped)
+    #       UnusedProp:              <- another direct child (= property name)
+    # ============================================================================
+    $compCustomProps = New-Object System.Collections.ArrayList  # {compName, propName, file, line}
+    foreach ($f in ($paFiles | Where-Object {
+        $stem = [System.IO.Path]::GetFileNameWithoutExtension($_.Name) -replace '\.pa$',''
+        $compFiles.ContainsKey($stem)
+    })) {
+        $compName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) -replace '\.pa$',''
+        $relPath  = (Join-Path 'src' ($f.FullName.Substring($srcDir.FullName.Length).TrimStart('\','/'))) -replace '\\','/'
+        $lines    = Get-Content -LiteralPath $f.FullName
+        $nLines   = $lines.Count
+        $inCP     = $false   # currently inside a CustomProperties: block
+        $cpIndent = -1       # indent of the CustomProperties: marker
+        $propIndent = -1     # indent of direct prop-name children (set on first child seen)
+
+        for ($i = 0; $i -lt $nLines; $i++) {
+            $line = $lines[$i]
+            if ($line -match '^\s*$') { continue }
+            $indent = Get-Indent $line
+            $trim   = $line.Trim()
+
+            if ($inCP) {
+                # Exit the block when we return to or above the CustomProperties: indent
+                if ($indent -le $cpIndent) {
+                    $inCP = $false; $cpIndent = -1; $propIndent = -1
+                    # Fall through: this line may start another CustomProperties: block
+                } else {
+                    # First non-empty line inside the block sets the prop-name indent level
+                    if ($propIndent -lt 0) { $propIndent = $indent }
+
+                    # Lines at prop-name indent are property declarations; deeper = their metadata
+                    if ($indent -eq $propIndent -and $trim -match '^([A-Za-z_][\w]*):\s*$') {
+                        [void]$compCustomProps.Add([pscustomobject]@{
+                            compName = $compName; propName = $Matches[1]; file = $relPath; line = ($i + 1)
+                        })
+                    }
+                    continue
+                }
+            }
+
+            # Detect CustomProperties: marker (not inside one already)
+            if ($trim -imatch '^CustomProperties\s*:\s*$') {
+                $inCP     = $true
+                $cpIndent = $indent
+                $propIndent = -1
+            }
+        }
+    }
+
     # All formula text concatenated for reference counting / token scans
     $allText = ($formulas | ForEach-Object { $_.text }) -join "`n"
 
@@ -778,6 +834,30 @@ try {
                 -Evidence "component '$compName'" `
                 -Message "Component '$compName' is defined but never instantiated on any screen. Either use it or delete the component file to reduce app size." `
                 -SortKey "$compRelPath|1|$compName"))
+        }
+    }
+
+    # --- Unused component custom property (UP) - Low, enumeration ---
+    # A custom property defined on a component but never READ in any formula text.
+    # "Used" = either the qualified token "componentName.PropName" OR the bare token "PropName"
+    # appears anywhere in $allText (word-boundary regex, same as Count-Refs).
+    # Instance-assignment lines (e.g. "FooterText: ="hi"" in the consumer screen) have the
+    # property name as a YAML key, NOT inside formula text, so they do NOT count as a reference.
+    # Citation: coding-standards-and-performance.md section 5 (Components & reuse)
+    $upCitation = 'coding-standards-and-performance.md section 5 (Components & reuse) - https://learn.microsoft.com/power-apps/maker/canvas-apps/working-with-large-apps | https://learn.microsoft.com/power-apps/maker/canvas-apps/create-component'
+    foreach ($cp in $compCustomProps) {
+        # Check for qualified reference: "cmpFooter.UnusedProp"
+        $qualifiedRef = [bool]([regex]::Matches($allText, '(?<![\w.])' + [regex]::Escape($cp.compName) + '\.' + [regex]::Escape($cp.propName) + '\b')).Count
+        # Check for bare token reference: "UnusedProp" (word-boundary match)
+        $bareRef = Count-Refs $cp.propName
+        if (-not $qualifiedRef -and $bareRef -le 0) {
+            [void]$det.Add((New-Finding -Prefix 'UP' -Type 'unused-component-property' `
+                -Category 'Dead / unused' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+                -Citation $upCitation `
+                -Location @{ screen=$cp.compName; control=$null; property=$cp.propName; file=$cp.file; line=$cp.line } `
+                -Evidence "component '$($cp.compName)' property '$($cp.propName)'" `
+                -Message "Custom property '$($cp.propName)' on component '$($cp.compName)' is defined but never referenced in any formula. Remove it or wire it up." `
+                -SortKey "$($cp.file)|$($cp.line)|$($cp.compName).$($cp.propName)"))
         }
     }
 
