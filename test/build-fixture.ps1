@@ -126,7 +126,9 @@ App:
             =Set(gblZebra, 1);
             Set(gblApple, 2);
             Set(gblTitle, "Kitchen Sink");
-            Set(gblMango, 3)
+            Set(gblMango, 3);
+            ClearCollect(colZebra, [1]);
+            ClearCollect(colApple, [2])
 '@
 W (Join-Path $ksSrc 'MainScreen.pa.yaml') @'
 Screens:
@@ -144,6 +146,10 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =gblTitle
+            - lblCollections:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =CountRows(colZebra) + CountRows(colApple)
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

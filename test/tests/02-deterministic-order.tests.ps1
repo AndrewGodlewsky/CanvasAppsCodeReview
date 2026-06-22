@@ -4,10 +4,10 @@
 # non-alphabetical order (lblZebra, lblApple, lblTitle) so any hashtable-key ordering
 # instability will surface as a mismatch between the two runs.
 
-# Run the analyzer twice using different env-override keys so the cache treats them as
-# separate runs. The analyzer ignores unknown CAA_ vars, so both produce real output.
+# Two genuinely separate child-process invocations: different cache keys force two real runs.
+# The analyzer ignores unknown CAA_ vars, so both produce real output.
 $r1 = Invoke-Analyzer -Fixture 'MaintainabilityKitchenSink.msapp' -EnvOverrides @{}
-$r2 = Invoke-Analyzer -Fixture 'MaintainabilityKitchenSink.msapp' -EnvOverrides @{ CAA_RUN = '2' }
+$r2 = Invoke-Analyzer -Fixture 'MaintainabilityKitchenSink.msapp' -EnvOverrides @{ CAA_NOCACHE = '1' }
 
 Assert-True ($null -ne $r1) 'run-1 produced output'
 Assert-True ($null -ne $r2) 'run-2 produced output'
@@ -37,3 +37,11 @@ Assert-Equal $ctrl1 $sortedCtrl 'controls order is alphabetical by name'
 
 $sortedVar = ($i1.variables | Sort-Object name | ForEach-Object { $_.name }) -join ','
 Assert-Equal $var1 $sortedVar 'variables order is alphabetical by name'
+
+# Collections order must be stable and alphabetical (colApple before colZebra)
+$col1 = ($i1.collections | ForEach-Object { $_.name }) -join ','
+$col2 = ($i2.collections | ForEach-Object { $_.name }) -join ','
+Assert-Equal $col1 $col2 'collections order stable across two runs'
+
+$sortedCol = ($i1.collections | Sort-Object name | ForEach-Object { $_.name }) -join ','
+Assert-Equal $col1 $sortedCol 'collections order is alphabetical by name'
