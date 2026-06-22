@@ -885,7 +885,9 @@ try {
                 $locFile    = if ($tf.location.file)     { $tf.location.file }     else { '-' }
                 $locLine    = if ($null -ne $tf.location.line) { $tf.location.line } else { '-' }
                 $locStr = "$locScreen/$locControl ($($locFile):$locLine)"
-                $evStr  = ($tf.evidence -replace '\|', '\|') -replace "`n",' '
+                # Encode pipes as the HTML entity so a formula snippet containing '|'
+                # cannot break the markdown table on any renderer (GFM-safe).
+                $evStr  = ($tf.evidence -replace '\|', '&#124;') -replace "`n",' '
                 [void]$enumMd.AppendLine("| $($tf.id) | $($tf.severity) | $locStr | $evStr |")
             }
             [void]$enumMd.AppendLine("")
@@ -913,16 +915,17 @@ try {
     [void]$summaryMd.AppendLine("")
     [void]$summaryMd.AppendLine("| Category | High | Med | Low | Total |")
     [void]$summaryMd.AppendLine("| --- | --- | --- | --- | --- |")
-    $catTotals = 0
+    $sumHigh = 0; $sumMed = 0; $sumLow = 0
     foreach ($cat in $allCategories) {
         $catDet = @($det | Where-Object { $_.category -eq $cat })
         $high   = @($catDet | Where-Object { $_.severity -eq 'High' }).Count
         $med    = @($catDet | Where-Object { $_.severity -eq 'Medium' }).Count
         $low    = @($catDet | Where-Object { $_.severity -eq 'Low' }).Count
         $total  = $catDet.Count
-        $catTotals += $total
+        $sumHigh += $high; $sumMed += $med; $sumLow += $low
         [void]$summaryMd.AppendLine("| $cat | $high | $med | $low | $total |")
     }
+    [void]$summaryMd.AppendLine("| **Total** | $sumHigh | $sumMed | $sumLow | $($det.Count) |")
     [void]$summaryMd.AppendLine("")
 
     # Confirmed/Potential split
