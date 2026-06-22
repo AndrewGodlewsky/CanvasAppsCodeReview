@@ -232,7 +232,7 @@ Screens:
             - lblComplexNoComment:
                 Control: Label@2.0.0
                 Properties:
-                    Text: =If(gblTitle = "a", 1, If(gblTitle = "b", 2, If(gblTitle = "c", 3, If(gblTitle = "d", 4, 5))))
+                    Text: =If (gblTitle = "a", 1, If (gblTitle = "b", 2, If (gblTitle = "c", 3, If (gblTitle = "d", 4, 5))))
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:

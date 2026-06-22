@@ -208,17 +208,31 @@ function Get-MaxIfDepth([string]$Code) {
     $i          = 0
 
     while ($i -lt $n) {
-        # Check for If( or Switch( token starting at position $i
+        # Check for If( or Switch( token starting at position $i.
+        # Power Fx allows optional whitespace between the keyword and '(', e.g. "If (" or "If  (".
+        # Word-boundary guard: the char BEFORE "If"/"Switch" must NOT be an identifier char or '_'.
         $isIfToken = $false
-        if ($i + 2 -lt $n -and $Code[$i] -eq 'I' -and $Code[$i+1] -eq 'f' -and $Code[$i+2] -eq '(') {
-            # Confirm it is a word boundary (no preceding identifier char)
-            if ($i -eq 0 -or -not [char]::IsLetterOrDigit($Code[$i-1]) -and $Code[$i-1] -ne '_') {
-                $isIfToken = $true; $i += 2  # advance past "If", leave '(' to be processed below
+        $tokenAdvance = 0   # how many chars to advance past the keyword (before the optional spaces + '(')
+
+        if ($i + 1 -lt $n -and $Code[$i] -eq 'I' -and $Code[$i+1] -eq 'f') {
+            # Candidate: check word boundary
+            if ($i -eq 0 -or (-not [char]::IsLetterOrDigit($Code[$i-1]) -and $Code[$i-1] -ne '_')) {
+                $tokenAdvance = 2   # length of "If"
             }
         }
-        elseif ($i + 6 -lt $n -and $Code.Substring($i,6) -eq 'Switch' -and $Code[$i+6] -eq '(') {
-            if ($i -eq 0 -or -not [char]::IsLetterOrDigit($Code[$i-1]) -and $Code[$i-1] -ne '_') {
-                $isIfToken = $true; $i += 6  # advance past "Switch", leave '(' below
+        elseif ($i + 5 -lt $n -and $Code.Substring($i,6) -eq 'Switch') {
+            if ($i -eq 0 -or (-not [char]::IsLetterOrDigit($Code[$i-1]) -and $Code[$i-1] -ne '_')) {
+                $tokenAdvance = 6   # length of "Switch"
+            }
+        }
+
+        if ($tokenAdvance -gt 0) {
+            # Scan past the keyword, then past any whitespace, to see if a '(' follows
+            $j = $i + $tokenAdvance
+            while ($j -lt $n -and ($Code[$j] -eq ' ' -or $Code[$j] -eq "`t")) { $j++ }
+            if ($j -lt $n -and $Code[$j] -eq '(') {
+                $isIfToken = $true
+                $i = $j   # position $i now points at '(' — processed in the block below
             }
         }
 
