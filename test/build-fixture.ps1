@@ -122,12 +122,24 @@ W (Join-Path $ksSrc 'App.pa.yaml') @'
 App:
     Properties:
         StartScreen: =MainScreen
-        OnStart: =Set(gblTitle, "Kitchen Sink")
+        OnStart: |
+            =Set(gblZebra, 1);
+            Set(gblApple, 2);
+            Set(gblTitle, "Kitchen Sink");
+            Set(gblMango, 3)
 '@
 W (Join-Path $ksSrc 'MainScreen.pa.yaml') @'
 Screens:
     MainScreen:
         Children:
+            - lblZebra:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =gblZebra
+            - lblApple:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =gblApple
             - lblTitle:
                 Control: Label@2.0.0
                 Properties:

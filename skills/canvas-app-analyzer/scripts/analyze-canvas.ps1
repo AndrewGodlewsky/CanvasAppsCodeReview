@@ -358,6 +358,9 @@ try {
         }
     }
 
+    # Sort controls deterministically so position-based IDs (added later) are stable.
+    $controls = @($controls | Sort-Object name, file, line)
+
     # All formula text concatenated for reference counting / token scans
     $allText = ($formulas | ForEach-Object { $_.text }) -join "`n"
 
@@ -419,6 +422,10 @@ try {
         $total  = Count-Refs $cl
         [void]$collectionList.Add([pscustomobject]@{ name=$cl; definedIn=$collections[$cl]; referenced=($total - $assign) })
     }
+
+    # Sort variables and collections deterministically for stable position-based IDs.
+    $variables      = @($variables      | Sort-Object name, scope, definedIn)
+    $collectionList = @($collectionList | Sort-Object name, definedIn)
 
     # Navigation edges (from Navigate / Back)
     $navigation = New-Object System.Collections.ArrayList
