@@ -909,6 +909,25 @@ try {
         }
     }
 
+    # --- Stub event handlers (EH) - Low, enumeration, Confirmed ---
+    # An event property (name matches ^On[A-Z]) whose formula text normalises to "false"
+    # is a stub — the maker left the Power Apps Studio default without wiring real logic.
+    # Citation: coding-standards-and-performance.md section 1 (Stub/empty event handlers)
+    # - general maintainability guidance: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+    $ehCitation = 'coding-standards-and-performance.md section 1 (Stub/empty event handlers) - general maintainability guidance: https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    foreach ($fm in $formulas) {
+        if ($fm.property -notmatch '^On[A-Z]') { continue }
+        $normalized = ($fm.text -replace '^=','').Trim()
+        if ($normalized -ine 'false') { continue }
+        [void]$det.Add((New-Finding -Prefix 'EH' -Type 'stub-event-handler' `
+            -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+            -Citation $ehCitation `
+            -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
+            -Evidence "$($fm.control).$($fm.property) = false" `
+            -Message "Event handler '$($fm.control).$($fm.property)' is a stub (formula is literally 'false'). Either wire up real logic or remove the property." `
+            -SortKey "$($fm.file)|$($fm.line)|$($fm.control).$($fm.property)"))
+    }
+
     # --- Exact duplicate formulas (Confirmed, Redundancy) ---
     $byNorm = @{}
     foreach ($fm in $formulas) {

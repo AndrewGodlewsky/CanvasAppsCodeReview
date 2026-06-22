@@ -78,6 +78,18 @@ Abbreviation table (from docs):
   each other. A formula that has explanatory prose comments does NOT fire CC; a complex formula that
   lacks any comment MAY fire MC. Both findings are consistent with the guidance above.
 
+### Stub/empty event handlers
+- An event property (`OnSelect`, `OnChange`, `OnVisible`, `OnStart`, etc.) whose formula is literally
+  `false` is a **stub handler** — the maker left the Power Apps Studio default in place without wiring
+  up real logic. It is inert at runtime but signals unfinished work and can mislead future maintainers
+  into thinking the control responds to the event.
+- **Flag (`EH`, Low, Confirmed):** any property whose name matches `^On[A-Z]` and whose formula text,
+  after stripping the leading `=` and trimming whitespace, equals `false` (case-insensitive).
+- Truly-blank handlers (the property omitted entirely) are already excluded from the YAML source by
+  the Power Apps Studio parser and are out of scope for this check.
+- Source: general maintainability guidance —
+  https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+
 ### Formula formatting
 - Long unformatted single-line formulas are a readability finding; the **Format text** command (or line
   breaks + indentation) is the fix.

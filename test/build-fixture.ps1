@@ -176,6 +176,11 @@ Screens:
                 Control: cmpFooter
                 Properties:
                     FooterText: ="hi"
+            - btnStub:
+                Control: Classic/Button@2.2.0
+                Properties:
+                    OnSelect: =false
+                    Text: ="stub"
 '@
 W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
 ComponentDefinitions:
