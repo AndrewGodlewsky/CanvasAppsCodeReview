@@ -1371,7 +1371,10 @@ try {
         [void]$ndClusters[$root].Add($i)
     }
 
-    foreach ($root in $ndClusters.Keys) {
+    # Sort cluster roots so emission order into $det is deterministic across runs
+    # (hashtable .Keys order is not guaranteed in PS 5.1). IDs are re-sorted by sortKey in
+    # Stamp-Ids regardless, but this keeps the emitted JSON/enumeration row order stable too.
+    foreach ($root in ($ndClusters.Keys | Sort-Object)) {
         $idxList = $ndClusters[$root]
         if ($idxList.Count -lt 2) { continue }   # singleton → no near-dup
         # Sort members deterministically: file then line then control.property
