@@ -12,6 +12,8 @@ foreach ($t in Get-ChildItem (Join-Path $here 'tests') -Filter '*.tests.ps1' | S
     . $t.FullName
 }
 
+Clear-AnalyzerTemp   # remove this run's analyzer output dirs from %TEMP%
+
 Write-Host ""
 Write-Host "PASS=$script:TestPass FAIL=$script:TestFail" -ForegroundColor $(if ($script:TestFail) { 'Red' } else { 'Green' })
 if ($script:TestFail -gt 0) { exit 1 } else { exit 0 }

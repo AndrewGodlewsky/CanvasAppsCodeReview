@@ -23,6 +23,13 @@ function Assert-IdSet($findings, $expectedIds, $msg) {
 $script:RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 $script:_analyzerCache = @{}
+$script:_analyzerTempDirs = New-Object System.Collections.ArrayList
+# Deletes every analyzer output dir created this run. Called by run-tests.ps1 AFTER
+# all tests finish, so __outDir stays readable during the run but nothing leaks into %TEMP%.
+function Clear-AnalyzerTemp {
+    foreach ($d in $script:_analyzerTempDirs) { if (Test-Path $d) { Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue } }
+    $script:_analyzerTempDirs.Clear()
+}
 # Runs analyze-canvas.ps1 against a fixture; caches per (fixture, env-overrides).
 # Returns @{ Mech = <parsed mechanical-findings.json>; Index = <parsed index.json>; OutDir = <path> }
 # but for back-compat the bare parsed mechanical-findings object is returned (with
@@ -35,11 +42,13 @@ function Invoke-Analyzer {
     $script = Join-Path $script:RepoRoot 'skills\canvas-app-analyzer\scripts\analyze-canvas.ps1'
     $fixturePath = Join-Path $script:RepoRoot "test\fixtures\$Fixture"
     $outRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('caatest_' + [Guid]::NewGuid().ToString('N'))
+    [void]$script:_analyzerTempDirs.Add($outRoot)
 
     $saved = @{}
     foreach ($k in $EnvOverrides.Keys) { $saved[$k] = [Environment]::GetEnvironmentVariable($k); [Environment]::SetEnvironmentVariable($k, $EnvOverrides[$k]) }
     try {
         & powershell -NoProfile -ExecutionPolicy Bypass -File $script -Path $fixturePath -OutputRoot $outRoot | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "analyze-canvas.ps1 exited $LASTEXITCODE for fixture '$Fixture' (env: $key)" }
         $mf = Get-ChildItem -Path $outRoot -Recurse -Filter 'mechanical-findings.json' -ErrorAction SilentlyContinue | Select-Object -First 1
         $ix = Get-ChildItem -Path $outRoot -Recurse -Filter 'index.json' -ErrorAction SilentlyContinue | Select-Object -First 1
         $result = if ($mf) { Get-Content -LiteralPath $mf.FullName -Raw | ConvertFrom-Json } else { $null }
