@@ -54,6 +54,26 @@ Abbreviation table (from docs):
   `hideNxtBtn`. Prefer `EmployeeId`, etc.
 - Context & global vars may share a name — flag collisions (forces the disambiguation operator).
 
+### Inconsistent naming (IN) — scoped to variable/collection prefix consistency
+When an app uses the naming convention (e.g., `gbl` prefix for globals) in *some* names but not
+others within the same category, this is a category-level inconsistency that makes the codebase
+harder to audit and maintain — you cannot reliably search for "all global variables" by prefix.
+
+**Detector scope (deliberately narrow to avoid false positives):**
+- Applies only to three variable/collection categories: **global variables** (`gbl` prefix),
+  **context variables** (`loc` prefix), and **collections** (`col` prefix).
+- Controls are explicitly excluded — control prefix conventions are fuzzier and control over
+  naming is less consistent, so applying IN to controls would produce false positives.
+- IN fires for a category only when it has **at least one compliant member** (correct prefix)
+  AND **at least one violating member** (missing prefix). An all-violating category is already
+  fully covered by VP (instance-level findings); an all-compliant category is fine.
+- Emits **one IN finding per inconsistent category** (category-level), while VP emits one
+  finding per violating instance (instance-level). Both detectors may fire on the same app
+  — that is correct and intentional (different lenses for the same underlying issue).
+- Severity: **Low**. Tier: **enumeration**. Confidence: **Confirmed**.
+- Citation: coding-standards-and-performance.md section 1 (Naming & maintainability) —
+  https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+
 ### Screen names
 - End with the word "Screen"; plain language; spaces OK; avoid abbreviations (screen readers announce
   them — accessibility). Flag `Home`, `LoaderScreen`, `EmpProfDetails` style names.

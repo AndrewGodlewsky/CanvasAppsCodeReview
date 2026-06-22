@@ -128,7 +128,8 @@ App:
             Set(gblTitle, "Kitchen Sink");
             Set(gblMango, 3);
             ClearCollect(colZebra, [1]);
-            ClearCollect(colApple, [2])
+            ClearCollect(colApple, [2]);
+            Set(plainGlobalNoPrefix, 99)
 '@
 W (Join-Path $ksSrc 'MainScreen.pa.yaml') @'
 Screens:
@@ -138,6 +139,10 @@ Screens:
                 Control: Label@2.0.0
                 Properties:
                     Text: =gblZebra
+            - lblPlain:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =plainGlobalNoPrefix
             - lblApple:
                 Control: Label@2.0.0
                 Properties:

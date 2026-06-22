@@ -847,6 +847,65 @@ try {
         }
     }
 
+    # --- Inconsistent naming (IN) - Low, enumeration, Confirmed ---
+    # Category-level detector: fires when a variable/collection scope category MIXES
+    # conventionally-prefixed names with un-prefixed names.  Requires at least one
+    # compliant member (correct prefix) AND at least one violating member (wrong/no prefix)
+    # within the same category.  Controls are excluded (too fuzzy -> false positives).
+    # One finding per inconsistent category; VP fires per-instance (both may coexist).
+    # Citation: coding-standards-and-performance.md section 1 (Naming & maintainability)
+    # - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability
+    $inCitation = 'coding-standards-and-performance.md section 1 (Naming & maintainability / Inconsistent naming) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+
+    # Category definitions: [label, prefix, members-list]
+    # Process in sorted order for deterministic id assignment.
+    $inCategories = @(
+        [pscustomobject]@{
+            label    = 'collection'
+            prefix   = 'col'
+            members  = @($collectionList | ForEach-Object { $_.name })
+            sortKey  = 'IN|collection'
+        },
+        [pscustomobject]@{
+            label    = 'context variable'
+            prefix   = 'loc'
+            members  = @($variables | Where-Object { $_.scope -eq 'context' } | ForEach-Object { $_.name })
+            sortKey  = 'IN|context'
+        },
+        [pscustomobject]@{
+            label    = 'global variable'
+            prefix   = 'gbl'
+            members  = @($variables | Where-Object { $_.scope -eq 'global' } | ForEach-Object { $_.name })
+            sortKey  = 'IN|global'
+        }
+    )
+
+    foreach ($cat in ($inCategories | Sort-Object sortKey)) {
+        $catMembers = $cat.members
+        if ($catMembers.Count -lt 2) { continue }  # need at least 2 members to have both compliant and violating
+
+        $compliant  = @($catMembers | Where-Object { $_ -clike ($cat.prefix + '*') })
+        $violating  = @($catMembers | Where-Object { -not ($_ -clike ($cat.prefix + '*')) })
+
+        # Only fire when BOTH compliant and violating members exist (mixed category)
+        if ($compliant.Count -lt 1 -or $violating.Count -lt 1) { continue }
+
+        $violatingStr = ($violating | Sort-Object) -join ', '
+        $compliantStr = ($compliant | Sort-Object | Select-Object -First 3) -join ', '
+        if ($compliant.Count -gt 3) { $compliantStr += ", ..." }
+
+        $evid = "Inconsistent $($cat.label) naming: $($violating.Count) without '$($cat.prefix)' prefix ($violatingStr) vs $($compliant.Count) with prefix ($compliantStr)"
+        $msg  = "$($cat.label) naming is inconsistent: $($violating.Count) name(s) lack the '$($cat.prefix)' prefix ($violatingStr) while $($compliant.Count) name(s) correctly use it ($compliantStr). Adopt the '$($cat.prefix)' prefix consistently so variables can be located by prefix search."
+
+        [void]$det.Add((New-Finding -Prefix 'IN' -Type 'inconsistent-naming' `
+            -Category 'Maintainability & naming' -Severity 'Low' -Confidence 'Confirmed' -Tier 'enumeration' `
+            -Citation $inCitation `
+            -Location @{ screen=$null; control=$null; property=$null; file=$null; line=$null } `
+            -Evidence $evid `
+            -Message $msg `
+            -SortKey $cat.sortKey))
+    }
+
     # --- Dead / unused (Confirmed for data; Potential for controls = layout judgment) ---
     foreach ($v in $variables) {
         if ($v.referenced -le 0) {
