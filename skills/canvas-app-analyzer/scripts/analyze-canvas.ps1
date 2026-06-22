@@ -691,7 +691,7 @@ try {
                 delegation     = [bool]($sText -imatch '\b(Filter|LookUp|Search|Sort|SortByColumns|Sum|Average|Min|Max|CountRows|CountIf)\s*\(')
                 nPlusOne       = [bool]($sText -imatch '(?i)\bForAll\s*\(' -or $sText -imatch '(?i)Gallery')
                 errorHandling  = [bool]($sText -imatch '(?i)\b(Patch|Collect|Remove|RemoveIf|UpdateIf|SubmitForm)\s*\(')
-                deepNesting    = [bool]($sf | Where-Object { $_.text.Length -gt 500 })
+                deepNesting    = [bool]($sf | Where-Object { [System.Text.Encoding]::UTF8.GetByteCount($_.text) -gt $T_LongFormulaBytes })
             }
         })
     }
@@ -1105,6 +1105,28 @@ try {
                 -Evidence $snip `
                 -Message ("Identical formula repeated $($grp.Count) times: " + ($locs -join '; ') + ". Extract to a named formula (App.Formulas), a component, or a With() subexpression.") `
                 -SortKey "$($first.file)|$($first.line)|$k"))
+        }
+    }
+
+    # --- Long formulas (LF) - Medium, narrative, Confirmed ---
+    # A single property formula whose UTF-8 byte count exceeds $T_LongFormulaBytes is flagged.
+    # Long formulas hurt readability and Studio performance. Split into With() subexpressions
+    # or named formulas (App.Formulas).
+    # Citation: coding-standards-and-performance.md §2 "Formula formatting" + "Split long formulas"
+    $lfCitation = 'coding-standards-and-performance.md section 2 (Formula formatting / Split long formulas) - https://learn.microsoft.com/power-apps/guidance/coding-guidelines/code-readability'
+    foreach ($fm in $formulas) {
+        $byteCount = [System.Text.Encoding]::UTF8.GetByteCount($fm.text)
+        if ($byteCount -gt $T_LongFormulaBytes) {
+            $snipLen = [Math]::Min(120, $fm.text.Length)
+            $snipSuffix = if ($fm.text.Length -gt $snipLen) { ' ...' } else { '' }
+            $snip = $fm.text.Substring(0, $snipLen) + $snipSuffix
+            [void]$det.Add((New-Finding -Prefix 'LF' -Type 'long-formula' `
+                -Category 'Maintainability & naming' -Severity 'Medium' -Confidence 'Confirmed' -Tier 'narrative' `
+                -Citation $lfCitation `
+                -Location @{ screen=$fm.screen; control=$fm.control; property=$fm.property; file=$fm.file; line=$fm.line } `
+                -Evidence "$byteCount bytes: $snip" `
+                -Message "Formula '$($fm.control).$($fm.property)' is $byteCount bytes (threshold: $T_LongFormulaBytes). Split into With() subexpressions or extract to App.Formulas named formulas to improve readability and Studio performance." `
+                -SortKey "$($fm.file)|$($fm.line)|$($fm.control).$($fm.property)"))
         }
     }
 
