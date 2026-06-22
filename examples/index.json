@@ -53,45 +53,52 @@
                 ],
     "controls":  [
                      {
-                         "name":  "Gallery1",
-                         "type":  "Gallery",
-                         "screen":  "DetailScreen",
-                         "isDefaultName":  true
-                     },
-                     {
                          "name":  "btnSave",
                          "type":  "Classic/Button",
                          "screen":  "DetailScreen",
-                         "isDefaultName":  false
-                     },
-                     {
-                         "name":  "lblSame",
-                         "type":  "Label",
-                         "screen":  "DetailScreen",
-                         "isDefaultName":  false
-                     },
-                     {
-                         "name":  "galOrders",
-                         "type":  "Gallery",
-                         "screen":  "HomeScreen",
+                         "depth":  1,
                          "isDefaultName":  false
                      },
                      {
                          "name":  "Button2",
                          "type":  "Classic/Button",
                          "screen":  "HomeScreen",
+                         "depth":  1,
                          "isDefaultName":  true
                      },
                      {
-                         "name":  "lblWelcome",
-                         "type":  "Label",
+                         "name":  "Gallery1",
+                         "type":  "Gallery",
+                         "screen":  "DetailScreen",
+                         "depth":  1,
+                         "isDefaultName":  true
+                     },
+                     {
+                         "name":  "galOrders",
+                         "type":  "Gallery",
                          "screen":  "HomeScreen",
+                         "depth":  1,
                          "isDefaultName":  false
                      },
                      {
                          "name":  "lblOrphan",
                          "type":  "Label",
                          "screen":  "OrphanScreen",
+                         "depth":  1,
+                         "isDefaultName":  false
+                     },
+                     {
+                         "name":  "lblSame",
+                         "type":  "Label",
+                         "screen":  "DetailScreen",
+                         "depth":  1,
+                         "isDefaultName":  false
+                     },
+                     {
+                         "name":  "lblWelcome",
+                         "type":  "Label",
+                         "screen":  "HomeScreen",
+                         "depth":  1,
                          "isDefaultName":  false
                      }
                  ],

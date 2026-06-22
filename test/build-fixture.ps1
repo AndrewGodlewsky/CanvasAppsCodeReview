@@ -115,5 +115,209 @@ Copy-Item $msapp (Join-Path $multi 'canvasapps\app_one\AppOne.msapp')
 Copy-Item $msapp (Join-Path $multi 'canvasapps\app_two\AppTwo.msapp')
 [System.IO.Compression.ZipFile]::CreateFromDirectory($multi, (Join-Path $fix 'MultiAppSolution.zip'))
 
+# ---- MaintainabilityKitchenSink: planted, known-count fixture (grown per detector) ----
+$ks = Join-Path $stage 'ks'; $ksSrc = Join-Path $ks 'Src'; $ksComp = Join-Path $ksSrc 'Components'; $ksDs = Join-Path $ks 'DataSources'
+New-Item -ItemType Directory -Path $ksComp,$ksDs -Force | Out-Null
+W (Join-Path $ksSrc 'App.pa.yaml') @'
+App:
+    Properties:
+        StartScreen: =MainScreen
+        OnStart: |
+            =Set(gblZebra, 1);
+            Set(gblApple, 2);
+            Set(gblTitle, "Kitchen Sink");
+            Set(gblMango, 3);
+            ClearCollect(colZebra, [1]);
+            ClearCollect(colApple, [2]);
+            Set(plainGlobalNoPrefix, 99)
+'@
+W (Join-Path $ksSrc 'MainScreen.pa.yaml') @'
+Screens:
+    MainScreen:
+        Children:
+            - lblZebra:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =gblZebra
+            - lblPlain:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =plainGlobalNoPrefix
+            - lblApple:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =gblApple
+            - lblTitle:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =gblTitle
+            - lblCollections:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =CountRows(colZebra) + CountRows(colApple)
+            - conOuter:
+                Control: GroupContainer@1.3.0
+                Children:
+                    - conInner:
+                        Control: GroupContainer@1.3.0
+                        Children:
+                            - lblDeep:
+                                Control: Label@2.0.0
+                                Properties:
+                                    Text: ="deep"
+            - lblBusy:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblBusy, "Working...", "")
+            - btnSubmit:
+                Control: Classic/Button@2.2.0
+                Properties:
+                    OnSelect: |
+                        =// Submit the order to the back end
+                        Set(gblBusy, true);
+                        // Patch(Orders, Defaults(Orders), {Title: "x"});
+                        Notify("done")
+            - cmpFooterInstance:
+                Control: cmpFooter
+                Properties:
+                    FooterText: ="hi"
+            - btnStub:
+                Control: Classic/Button@2.2.0
+                Properties:
+                    OnSelect: =false
+                    Text: ="stub"
+            - lblHidden:
+                Control: Label@2.0.0
+                Properties:
+                    Visible: =false
+                    Text: ="never shown"
+            - lblDynamic:
+                Control: Label@2.0.0
+                Properties:
+                    Visible: =gblTitle <> ""
+                    Text: ="maybe shown"
+            - lblDead:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(false, "never", "always")
+            - lblLive:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblTitle <> "", "has title", "no title")
+            - lblDupeA:
+                Control: Label@2.0.0
+                Properties:
+                    Color: =RGBA(0, 0, 0, 1)
+                    Size: =15
+                    Text: ="Same content"
+            - lblDupeB:
+                Control: Label@2.0.0
+                Properties:
+                    Color: =RGBA(0, 0, 0, 1)
+                    Size: =15
+                    Text: ="Same content"
+            - lblDifferent:
+                Control: Label@2.0.0
+                Properties:
+                    Color: =RGBA(0, 0, 0, 1)
+                    Size: =20
+                    Text: ="Other content"
+            - lblAnchor:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="anchor"
+            - lblAnchorRef:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =lblAnchor.Text
+            - lblLong:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =Concatenate("This is a deliberately very long formula used to exercise the long-formula detector. ", "It needs to exceed the configured byte threshold so the LF detector fires on exactly this one control. ", "Padding padding padding padding padding padding padding padding padding padding.")
+            - lblComplexNoComment:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If (gblTitle = "a", 1, If (gblTitle = "b", 2, If (gblTitle = "c", 3, If (gblTitle = "d", 4, 5))))
+            - lblNdA:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblUser <> "" && gblTitle <> "", Concatenate(gblUser, " - ", gblTitle, " - ", "main dashboard view - active"), Concatenate("Guest", " - ", "main dashboard view - inactive"))
+            - lblNdB:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblUser <> "" && gblTitle <> "", Concatenate(gblUser, " - ", gblTitle, " - ", "main homepage view - active"), Concatenate("Guest", " - ", "main homepage view - inactive"))
+            - lblMagic:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(8675309 > 0, "Processing batch alpha", "https://magic.example.test/v2/orders")
+            - lblRepA:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="SharedConstantToken_RL"
+            - lblRepB:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =Concatenate("SharedConstantToken_RL", " suffix")
+            - lblRepC:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =If(gblZebra > 0, "SharedConstantToken_RL", "other")
+            - lblEnvHard:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =Concatenate("https://contoso.sharepoint.test/sites/ProdSite", " | ", "12345678-1234-1234-1234-1234567890ab")
+            - lblEnvOk:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="just/a/relative/path and plain text"
+            - lblCrossRef:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =lblOnSecond.Text
+'@
+W (Join-Path $ksSrc 'SecondScreen.pa.yaml') @'
+Screens:
+    SecondScreen:
+        Children:
+            - lblOnSecond:
+                Control: Label@2.0.0
+                Properties:
+                    Text: ="on second screen"
+'@
+W (Join-Path $ksComp 'cmpHeader.pa.yaml') @'
+ComponentDefinitions:
+    cmpHeader:
+        Type: CanvasComponent
+        CustomProperties:
+            HeaderText:
+                PropertyKind: Input
+                DataType: Text
+        Children:
+            - lblHeader:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =cmpHeader.HeaderText
+'@
+W (Join-Path $ksComp 'cmpFooter.pa.yaml') @'
+ComponentDefinitions:
+    cmpFooter:
+        Type: CanvasComponent
+        CustomProperties:
+            FooterText:
+                PropertyKind: Input
+                DataType: Text
+            UnusedProp:
+                PropertyKind: Input
+                DataType: Text
+        Children:
+            - lblFooter:
+                Control: Label@2.0.0
+                Properties:
+                    Text: =cmpFooter.FooterText
+'@
+W (Join-Path $ksDs 'Orders.json') '{"Name":"Orders","Type":"Table","ApiId":"/providers/microsoft.powerapps/apis/shared_sharepointonline"}'
+W (Join-Path $ks 'CanvasManifest.json') '{"Properties":{"Name":"MaintainabilityKitchenSink"}}'
+[System.IO.Compression.ZipFile]::CreateFromDirectory($ks, (Join-Path $fix 'MaintainabilityKitchenSink.msapp'))
+
 Remove-Item -Recurse -Force $stage
 Get-ChildItem $fix | ForEach-Object { $_.Name }
