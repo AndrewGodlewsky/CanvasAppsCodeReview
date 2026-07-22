@@ -1,0 +1,51 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Apps Glossary</title>
+<link rel="stylesheet" href="../assets/course.css">
+<main>
+<p class="kicker">Reference · Power Platform Code Apps</p>
+<h1>Glossary</h1>
+<p class="lede">The course's fixed vocabulary. Every lesson uses these terms exactly as defined here.</p>
+
+<h2>The app and its runtime</h2>
+<table>
+<tr><td id="code-app"><b>Code app</b></td><td>A single-page web app you write in your own IDE (React/TypeScript + Vite in the templates) that is hosted and delivered by the Power Apps host, with data access brokered through connectors. GA since 2026-02-05. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/overview">overview</a></td></tr>
+<tr><td id="host"><b>Power Apps host</b></td><td>The platform runtime that serves your compiled bundle, signs the user in with Entra ID, enforces governance (DLP, Conditional Access), and hands your code a context via the SDK. What you don't build is what the host provides. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/architecture">architecture</a></td></tr>
+<tr><td id="sdk"><b><code>@microsoft/power-apps</code> SDK</b></td><td>The npm client library that performs the host handshake (<code>getContext()</code>) and executes data operations against connectors from your app code. <a href="https://www.npmjs.com/package/@microsoft/power-apps">npm</a></td></tr>
+<tr><td id="power-config"><b><code>power.config.json</code></b></td><td>The file <code>pac code init</code> creates in your repo; identifies the app to the platform (name, build path, entry point).</td></tr>
+<tr><td id="csp"><b>Content Security Policy (CSP)</b></td><td>The browser policy the host applies to your app. Default is restrictive: <code>connect-src 'none'</code> (no external calls, including telemetry) and <code>worker-src 'none'</code> (no service workers → no offline/PWA). Admins allow-list exceptions per environment. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/system-limits-configuration">limits</a></td></tr>
+</table>
+
+<h2>Data</h2>
+<table>
+<tr><td id="connector"><b>Connector</b></td><td>A platform-managed proxy to a data source or API (Dataverse, Azure SQL, SharePoint, …). The <em>only</em> data path a code app has — there are no direct database connections. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-data">connect-to-data</a></td></tr>
+<tr><td id="custom-connector"><b>Custom connector</b></td><td>A connector you define over your own REST API (e.g., Azure Functions). The escape hatch for real business logic — and the exit-portability boundary.</td></tr>
+<tr><td id="connection"><b>Connection</b></td><td>A user's authorized instance of a connector (their credentials/consent). Apps share connector <em>definitions</em>; each user runs on their own connection.</td></tr>
+<tr><td id="dataverse"><b>Dataverse</b></td><td>Power Platform's built-in relational data service. Not required to run a code app, but required for Dataverse data sources and solution-based ALM. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-dataverse">connect-to-dataverse</a></td></tr>
+<tr><td id="delegation"><b>Delegation</b></td><td>Whether a query executes at the data source (delegable) or client-side over a partial download (non-delegable). Non-delegable queries silently truncate past 500 rows (max 2,000) — the single biggest behavioral trap for SQL-minded developers.</td></tr>
+<tr><td id="ppr"><b>Power Platform Request (PPR)</b></td><td>The metered unit of platform usage. Every connector call counts against a per-user daily quota: 40,000 (Premium) vs 6,000 (per-app/PAYG/M365). <a href="https://learn.microsoft.com/power-platform/admin/api-request-limits-allocations#licensed-user-request-limits">request limits</a></td></tr>
+</table>
+
+<h2>Licensing</h2>
+<table>
+<tr><td id="premium"><b>Power Apps Premium</b></td><td>The per-user license ($20/user/mo list; $12 at 2,000+ seats) every code-app end user needs. Unlike canvas apps, there is no standard-connector discount. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/overview#prerequisites">prerequisites</a></td></tr>
+<tr><td id="payg"><b>Per-app pay-as-you-go</b></td><td>$10 per active user per app per month, metered. Documented for Power Apps generally; its validity for code apps specifically is <em>unconfirmed</em> — flagged as a gap.</td></tr>
+<tr><td id="seeded"><b>Seeded (M365) rights</b></td><td>The limited Power Apps entitlement inside Microsoft 365 licenses: standard connectors + Dataverse for Teams only. Does <em>not</em> cover code apps.</td></tr>
+<tr><td id="dev-plan"><b>Developer Plan</b></td><td>Free plan giving developers up to 3 personal Dataverse environments for building and testing. Building costs nothing; only end users need licenses. <a href="https://learn.microsoft.com/power-platform/developer/create-developer-environment">dev environments</a></td></tr>
+</table>
+
+<h2>ALM and governance</h2>
+<table>
+<tr><td id="environment"><b>Environment</b></td><td>The platform's isolation unit (dev/test/prod each get one). Code app operations are <b>off by default per environment</b> — an admin toggle enables them (confirmed empirically, 2026-07-21).</td></tr>
+<tr><td id="solution"><b>Solution</b></td><td>Power Platform's packaging/transport unit for ALM. Code apps attach to one at push (<code>pac code push --solutionName</code>); solutions move between environments via export/import or Pipelines. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/push-to-solution">push-to-solution</a></td></tr>
+<tr><td id="connection-reference"><b>Connection reference</b></td><td>A solution-aware pointer to a connection, rebindable per environment — how one artifact targets dev data in dev and prod data in prod.</td></tr>
+<tr><td id="pipelines"><b>Power Platform Pipelines</b></td><td>Microsoft's built-in solution deployment system (dev→test→prod). The first-party documented CI/CD path for code apps; using Azure DevOps/GitHub at the solution layer instead is possible but community-documented.</td></tr>
+<tr><td id="managed-env"><b>Managed Environment</b></td><td>An admin-enabled environment tier with extra governance (sharing limits, policies). Whether code apps strictly require it is unconfirmed — treat as likely.</td></tr>
+<tr><td id="dlp"><b>DLP policy</b></td><td>Data Loss Prevention: admin rules classifying which connectors may be used together. Enforced against code apps at launch and runtime — inherited governance your self-hosted apps never had.</td></tr>
+<tr><td id="pac"><b><code>pac</code> CLI / <code>power-apps</code> npm CLI</b></td><td>The developer tooling. The <code>pac code</code> command group is preview-and-deprecating; its replacement, the <code>power-apps</code> npm CLI, is itself preview. Live churn — pin versions. <a href="https://learn.microsoft.com/power-platform/developer/cli/reference/code">CLI reference</a></td></tr>
+</table>
+
+<footer>
+<p>Part of the <a href="../MISSION.md">Lead the Tier</a> course · Sources: the four research briefs in <code>docs/research/</code> (2026-07-21) and the primary sources linked per term.</p>
+</footer>
+</main>

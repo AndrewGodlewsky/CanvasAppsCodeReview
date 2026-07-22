@@ -1,0 +1,404 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Power Platform Code Apps — The Full Course</title>
+<style>
+:root { --bg:#fffff8; --ink:#111; --muted:#666; --accent:#8a2907; --line:#ddd; --box:#f4f1ea; --good:#1a7a3a; --bad:#b3261e; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#151413; --ink:#e8e6e1; --muted:#9a968f; --accent:#e8926b; --line:#3a3733; --box:#201e1b; --good:#5dbb7f; --bad:#e57373; }
+}
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--ink); font-family:Charter,Georgia,'Times New Roman',serif; font-size:1.05rem; line-height:1.55; margin:0; padding:2.5rem 1.25rem 5rem; }
+main { max-width:46rem; margin:0 auto; }
+h1 { font-size:2rem; line-height:1.15; margin:0 0 .25rem; font-weight:600; }
+h2 { font-size:1.45rem; margin:3rem 0 .6rem; font-weight:600; border-top:3px solid var(--ink); padding-top:1.2rem; }
+h3 { font-size:1.1rem; margin:1.6rem 0 .4rem; font-weight:600; }
+p { margin:.7rem 0; }
+a { color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px; }
+.kicker { color:var(--muted); font-size:.85rem; letter-spacing:.06em; text-transform:uppercase; }
+.lede { font-size:1.1rem; color:var(--muted); font-style:italic; margin-top:.3rem; }
+.win { font-style:italic; color:var(--muted); }
+code { font-family:ui-monospace,Consolas,'Cascadia Mono',monospace; font-size:.88em; background:var(--box); border-radius:3px; padding:.08em .3em; }
+table { border-collapse:collapse; width:100%; margin:1rem 0; font-size:.95rem; }
+th,td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--line); vertical-align:top; }
+th { font-weight:600; }
+.callout { border-left:3px solid var(--accent); background:var(--box); padding:.7rem 1rem; margin:1.2rem 0; }
+.diagram { display:flex; flex-direction:column; gap:.5rem; margin:1.4rem 0; font-size:.92rem; }
+.diagram .row { display:flex; gap:.5rem; flex-wrap:wrap; }
+.diagram .node { flex:1 1 10rem; border:1.5px solid var(--ink); border-radius:6px; padding:.55rem .7rem; background:var(--box); }
+.diagram .node.you { border-style:dashed; border-color:var(--accent); }
+.diagram .node b { display:block; margin-bottom:.15rem; }
+.diagram .arrow { text-align:center; color:var(--muted); font-size:.85rem; }
+.legend { color:var(--muted); font-size:.85rem; }
+nav.toc { border:1px solid var(--line); border-radius:6px; padding:1rem 1.4rem; margin:1.5rem 0; }
+nav.toc ol { margin:.4rem 0 0; padding-left:1.2rem; }
+nav.toc li { margin:.25rem 0; }
+details { border:1px solid var(--line); border-radius:6px; padding:.6rem .9rem; margin:.7rem 0; }
+summary { cursor:pointer; font-weight:600; }
+details p { font-size:.97rem; }
+.wide { overflow-x:auto; }
+footer { margin-top:3rem; border-top:1px solid var(--line); padding-top:1rem; color:var(--muted); font-size:.9rem; }
+.quiz { margin:1.4rem 0; }
+.quiz .q { border:1px solid var(--line); border-radius:6px; padding:.9rem 1rem; margin:.8rem 0; }
+.quiz .q p.stem { margin:0 0 .6rem; font-weight:600; }
+.quiz button.opt { display:block; width:100%; text-align:left; font:inherit; color:inherit; background:var(--box); border:1px solid var(--line); border-radius:4px; padding:.45rem .7rem; margin:.3rem 0; cursor:pointer; }
+.quiz button.opt:hover:not(:disabled) { border-color:var(--accent); }
+.quiz button.opt:disabled { cursor:default; opacity:.85; }
+.quiz button.opt.correct { border-color:var(--good); outline:2px solid var(--good); }
+.quiz button.opt.wrong { border-color:var(--bad); outline:2px solid var(--bad); }
+.quiz .why { font-size:.92rem; color:var(--muted); margin:.5rem 0 0; display:none; }
+.quiz .score { font-weight:600; margin-top:1rem; }
+@media print {
+  body { padding:0; font-size:10.5pt; background:#fff; color:#000; }
+  a { color:#000; }
+  h2 { page-break-before:always; }
+  nav.toc, h1 + p + nav.toc { page-break-before:avoid; }
+  details { border:none; padding:0; }
+  details[open] summary { font-weight:600; }
+}
+</style>
+<main>
+<p class="kicker">Lead the Tier · Complete course edition · 2026-07-21</p>
+<h1>Power Platform Code Apps</h1>
+<p class="lede">Eight lessons that make you the person who can defend the adoption decision, set the reference architecture, and review any team's code-app design. Every claim is cited to a primary source; the tier ADR is the running case study.</p>
+
+<nav class="toc">
+<b>Contents</b>
+<ol>
+<li><a href="#l1">The code app mental model — what runs where</a></li>
+<li><a href="#l2">The four app models — and the "why not canvas?" answer</a></li>
+<li><a href="#l3">Licensing — who pays what</a></li>
+<li><a href="#l4">The connector data tier — where SQL intuition breaks</a></li>
+<li><a href="#l5">ALM — one-way Git, solutions, and pipelines</a></li>
+<li><a href="#l6">Governance &amp; security — what you inherit, what you owe</a></li>
+<li><a href="#l7">Limits &amp; saying no — the tier-admission checklist</a></li>
+<li><a href="#l8">Capstone — defending the ADR</a></li>
+<li><a href="#glossary">Appendix: glossary</a> · <a href="#sources">Appendix: sources</a></li>
+</ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="l1">Lesson 1 · The code app mental model: what runs where</h2>
+<p class="win">Win: draw the runtime on a whiteboard and say, without notes, what the platform owns and what your code owns.</p>
+
+<p>Every conversation you'll lead — an executive asking "why are we paying for this?", an engineer asking "where does my code run?", a security reviewer asking "who serves the bundle?" — starts from this picture. Everything else in this course is a consequence of it.</p>
+
+<div class="diagram">
+  <div class="row"><div class="node you"><b>Your repo (you own this)</b>React/TypeScript source · Vite build · your Git, PR review, CI, security scanning — unchanged.</div></div>
+  <div class="arrow">⬇ <code>pac code push</code> — uploads the <em>compiled bundle only</em>, one-way; the platform never stores source</div>
+  <div class="row"><div class="node"><b>Power Apps host (platform owns this)</b>Serves your bundle · signs users in with Entra ID · enforces DLP, Conditional Access, sharing, CSP · meters usage.</div></div>
+  <div class="arrow">⬇ user opens the app · ⬆ <code>getContext()</code> handshake via the <code>@microsoft/power-apps</code> SDK</div>
+  <div class="row">
+    <div class="node you"><b>User's browser</b>Runs your SPA. All of your code executes here — there is <em>no server tier of yours</em>.</div>
+    <div class="node"><b>Connector layer</b>Every data call goes through a connector, metered as Power Platform Requests.</div>
+    <div class="node"><b>Data</b>Dataverse · Azure SQL · SharePoint · your own APIs behind custom connectors.</div>
+  </div>
+</div>
+<p class="legend">Dashed boxes: yours. Solid boxes: the platform's. The whole adoption trade lives in that dashed/solid split.</p>
+
+<h3>Five facts that anchor everything</h3>
+<table>
+<tr><td>1</td><td><b>Your code runs only in the user's browser.</b> A code app is a client-side SPA; anything that can't live in a browser must move behind a connector. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/architecture">[architecture]</a></td></tr>
+<tr><td>2</td><td><b>The host is the value proposition.</b> Hosting, Entra sign-in, governance, delivery — that's what you stop building versus React + App Service. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/overview">[overview]</a></td></tr>
+<tr><td>3</td><td><b>Data is connector-only.</b> No connection strings, no direct DB. Typed clients are generated per data source; queries inherit delegation semantics, not SQL semantics. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-data">[connect-to-data]</a></td></tr>
+<tr><td>4</td><td><b>Git is the only home your source has.</b> Push is one-way and compiled-only; there is no download. Lose the repo, lose the app. <a href="https://learn.microsoft.com/power-platform/developer/cli/reference/code">[cli]</a></td></tr>
+<tr><td>5</td><td><b>Every end user needs Power Apps Premium.</b> No standard-connector discount, no M365 seeded coverage. Our tier works because we already hold Premium broadly. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/overview#prerequisites">[prerequisites]</a></td></tr>
+</table>
+
+<div class="callout"><b>ADR tie-in.</b> Fact 1 is why the ADR has a logic-placement policy at all: with no server tier of ours inside the platform, real business logic either degrades into flows/plugins or moves to our own Azure services behind custom connectors. The ADR chose the latter as the default.</div>
+
+<h3>Retrieval check</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"Where does a code app's code execute at runtime?","options":["Host servers","Azure Functions","The browser","Dataverse runtime"],"answer":2,"why":"A code app is a client-side SPA. The host serves and governs it, but execution is entirely in the user's browser — there is no server tier of yours."},
+ {"stem":"What does `pac code push` send to the platform?","options":["Full source repository","Compiled build output","Solution zip file","Connector definition files"],"answer":1,"why":"Push uploads only the built bundle, one-way. The platform never holds your source — Git remains its only home."},
+ {"stem":"How does a code app reach its data?","options":["Direct database connections","Embedded connection strings","Serverless API proxies","Through platform connectors"],"answer":3,"why":"Connectors are the only data path. That single fact carries the delegation semantics, request metering, and DLP governance of lessons 4 and 6."},
+ {"stem":"Who signs the end user in?","options":["Your app's login code","The Power Apps host","A custom token service","The browser's credential store"],"answer":1,"why":"Entra ID sign-in is performed by the host before your code runs — zero auth code in your app, and no custom-IdP escape hatch."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="l2">Lesson 2 · The four app models — and the "why not canvas?" answer</h2>
+<p class="win">Win: place any proposed app into the right Power Platform model in under a minute, and answer "why not canvas?" without hesitation.</p>
+
+<p>Power Platform has four ways to put an app in front of a user. Stakeholders conflate them constantly; the tier lead cannot.</p>
+
+<div class="wide"><table>
+<tr><th></th><th>Canvas app</th><th>Model-driven app</th><th>PCF component</th><th>Code app</th></tr>
+<tr><td><b>What it is</b></td><td>Maker-built app: drag-drop designer, Power Fx formulas</td><td>Generated UI over Dataverse: forms, views, business rules</td><td>A custom <em>control</em> embedded inside canvas/model-driven apps</td><td>Your own SPA (React/TS + Vite), platform-hosted</td></tr>
+<tr><td><b>Authored in</b></td><td>Power Apps Studio (browser)</td><td>Maker portal configuration</td><td>TypeScript, built with <code>pac pcf</code></td><td>Your IDE, your toolchain</td></tr>
+<tr><td><b>UI freedom</b></td><td>Medium — control palette</td><td>Low — prescribed shell</td><td>High, inside its slot</td><td>Total — it's your DOM</td></tr>
+<tr><td><b>Source &amp; CI</b></td><td>Power Fx in the platform; partial Git support</td><td>Configuration, not code</td><td>Real repo, real CI</td><td>Real repo, real CI; source never leaves Git</td></tr>
+<tr><td><b>End-user license</b></td><td>Depends on connectors used (standard may be cheaper)</td><td>Premium (Dataverse)</td><td>Follows its host app</td><td><b>Premium, always</b> — no standard-connector discount</td></tr>
+<tr><td><b>Best for</b></td><td>Citizen-dev forms and quick internal tools</td><td>Record-centric back-office over Dataverse</td><td>One custom widget inside a low-code app</td><td>Pro-code teams building real front-ends on platform rails</td></tr>
+</table></div>
+<p>Sources: <a href="https://learn.microsoft.com/power-apps/developer/code-apps/overview">code apps overview</a>, <a href="https://learn.microsoft.com/power-apps/maker/canvas-apps/getting-started">canvas apps</a>, <a href="https://learn.microsoft.com/power-apps/developer/data-platform/overview">Dataverse developer docs</a>, <a href="https://learn.microsoft.com/power-apps/developer/component-framework/react-controls-platform-libraries">PCF</a>.</p>
+
+<h3>The "why not canvas?" stakeholder answer</h3>
+<p>Someone senior will ask why your pro-code teams don't just use canvas apps — they look cheaper and the makers already know them. The honest answer has three parts:</p>
+<ol>
+<li><b>Toolchain.</b> Canvas apps put the source of truth inside the platform, edited in a browser studio with Power Fx. Code apps keep it in Git with your PR review, your SAST/SCA scanning, your test frameworks. For a team that already runs those disciplines, canvas is a regression; code apps are continuity.</li>
+<li><b>Ceiling.</b> Canvas UI is a control palette; complex interfaces fight it. A code app is your own React tree — the npm ecosystem included (within CSP limits, lesson 6).</li>
+<li><b>Honest cost caveat.</b> Canvas apps using only standard connectors can run on cheaper licensing; code apps are Premium unconditionally. If a proposed app is a trivial form over SharePoint for users <em>without</em> Premium, canvas may genuinely be the right call — the tier is a default for pro-code teams, not a ban on canvas.</li>
+</ol>
+
+<div class="callout"><b>ADR tie-in.</b> This is why the ADR is a <em>tier</em>, not a platform mandate: each model keeps its lane. Code apps take the pro-code, browser-based, connector-friendly lane; nothing in the ADR forbids a maker team from shipping a canvas form.</div>
+
+<h3>Retrieval check</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"Which model is for embedding custom controls inside other apps, not building standalone apps?","options":["Canvas","Model-driven","PCF","Code"],"answer":2,"why":"PCF (Power Apps Component Framework) builds controls that live inside canvas or model-driven apps — it is not a standalone app model."},
+ {"stem":"A record-centric back-office CRUD tool over Dataverse with minimal custom UI — best fit?","options":["Canvas app","Model-driven app","Code app","PCF control"],"answer":1,"why":"Model-driven apps generate that UI from Dataverse metadata for free. Building it as a code app means hand-writing what the platform would have generated."},
+ {"stem":"The main reason a pro-code team picks code apps over canvas?","options":["Lower cost per user","Standard developer toolchain support","Faster drag-drop screen building","Native offline mobile support"],"answer":1,"why":"Git, PR review, CI, real test frameworks, your IDE. It is not cheaper (Premium always) and offline/mobile is exactly what code apps lack."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="l3">Lesson 3 · Licensing — who pays what</h2>
+<p class="win">Win: answer any seat, price, or quota question in a meeting — including the 5,000-user math — without opening a document.</p>
+
+<h3>The three rules</h3>
+<ol>
+<li><b>Every end user needs Power Apps Premium.</b> The docs name it specifically and unconditionally; unlike canvas apps there is no cheaper "standard connectors only" path. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/overview#prerequisites">[prerequisites]</a></li>
+<li><b>Microsoft 365 seeded rights do not cover code apps.</b> The M365 grant is standard connectors + Dataverse for Teams only. No M365/O365 SKU by itself entitles a user to run a code app. <a href="https://cdn-dynmedia-1.microsoft.com/is/content/microsoftcorp/microsoft/bade/documents/products-and-services/en-us/bizapps/Power-Platform-Licensing-Guide.pdf">[Licensing Guide]</a></li>
+<li><b>Developers build free.</b> The Developer Plan grants up to 3 personal Dataverse environments; no license is needed to build or test. <a href="https://learn.microsoft.com/power-platform/developer/create-developer-environment">[dev plan]</a></li>
+</ol>
+
+<h3>Prices and the 5,000-seat math (July 2026 list — always re-check)</h3>
+<div class="wide"><table>
+<tr><th>Model</th><th>List price</th><th>5,000 users</th><th>Notes</th></tr>
+<tr><td>Premium per-user</td><td>$20/user/mo</td><td>$100k/mo</td><td>Unlimited apps per user; 40,000 requests/user/day</td></tr>
+<tr><td>Premium volume tier</td><td>$12/user/mo at 2,000+ new licenses</td><td>$60k/mo</td><td>Same entitlements, volume price</td></tr>
+<tr><td>Per-app pay-as-you-go</td><td>$10 per <em>active</em> user/app/month</td><td>≤ $50k/mo, scales with actual use</td><td>One app; 6,000 requests/user/day; <b>validity for code apps unconfirmed</b></td></tr>
+<tr><td>Per-app subscription</td><td>—</td><td>—</td><td><b>Retired for new customers 2026-01-02</b> — do not plan on it</td></tr>
+</table></div>
+<p>Sources: <a href="https://www.microsoft.com/power-platform/products/power-apps/pricing">pricing page</a>, <a href="https://www.microsoft.com/en-us/licensing/news/power-app-per-app-end-of-sale">per-app end of sale</a>, <a href="https://learn.microsoft.com/power-platform/admin/api-request-limits-allocations#licensed-user-request-limits">request limits</a>.</p>
+
+<h3>Why quotas are a licensing topic</h3>
+<p>Each license carries a per-user daily Power Platform Request quota — Premium gets 40,000; per-app, PAYG, and M365-seeded get 6,000, non-poolable. A data-heavy app can exhaust 6,000 requests surprisingly fast, which is a real argument for Premium beyond the unlimited-apps entitlement.</p>
+
+<div class="callout"><b>ADR tie-in.</b> Our tier's economics rest on one org-specific fact: target users <em>already hold Premium broadly</em>, so marginal license cost ≈ $0. That is why the ADR lists an EA change as a revisit trigger — the engineering trade-offs would survive a licensing change; the economics would not.</div>
+
+<h3>Retrieval check</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"What license does every code-app end user need?","options":["Microsoft 365 E5","Power Apps Premium","Per-app subscription plan","No license needed"],"answer":1,"why":"Premium, named unconditionally in the prerequisites. The per-app subscription was retired for new customers in January 2026."},
+ {"stem":"What do Microsoft 365 seeded rights cover?","options":["Standard connectors only","All premium connectors","Code apps too","Full Dataverse access"],"answer":0,"why":"The M365 grant is standard connectors plus Dataverse for Teams — never premium connectors, full Dataverse, or code apps."},
+ {"stem":"Premium's per-user daily request quota?","options":["6,000","25,000","40,000","100,000"],"answer":2,"why":"40,000/day for Premium; 6,000/day for per-app, PAYG, and seeded licenses — non-poolable across users."},
+ {"stem":"At 2,000+ new per-user licenses, Premium list price drops to?","options":["$5/user/month","$10/user/month","$12/user/month","$15/user/month"],"answer":2,"why":"$12/user/mo at the documented 2,000+ volume tier — $60k/mo at 5,000 seats versus $100k at the $20 list price."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="l4">Lesson 4 · The connector data tier — where SQL intuition breaks</h2>
+<p class="win">Win: spot the delegation trap and the quota ceiling in a design review before they ship.</p>
+
+<h3>How data access actually works</h3>
+<p><code>pac code add-data-source</code> registers a connector against your app and generates typed TypeScript model + service files you call from your code. Supported sources include Dataverse, Azure SQL, SharePoint, and your own APIs via custom connectors. Two workflow facts pro-code developers find jarring: a connection <em>schema change</em> requires deleting and re-adding the data source to regenerate the types, and there is no path to call an arbitrary endpoint outside the connector model — the CSP blocks direct external calls (lesson 6). <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-data">[connect-to-data]</a></p>
+
+<h3>The traps, in descending order of pain</h3>
+<table>
+<tr><td>1</td><td><b>Silent truncation.</b> Non-delegable queries evaluate client-side over a partial download: past 500 rows (configurable to 2,000 max) the rest are <em>silently dropped</em> — no error, no warning, wrong answer. Aggregates cap at 50,000 rows. This is the single most common wrong-result bug a reviewer should hunt for.</td></tr>
+<tr><td>2</td><td><b>No transactions or batch.</b> There is no documented multi-row transaction or batch API. A "save these 30 rows atomically" requirement means server-side logic behind a custom connector — not a loop of single-row calls.</td></tr>
+<tr><td>3</td><td><b>Metering and ceilings.</b> Every call is a Power Platform Request against the per-user daily quota (lesson 3). Synchronous flow calls time out at 120 seconds; gateway payloads cap around 3&nbsp;MB. High-throughput or long-running work belongs in your own Azure backend, reached through a connector. <a href="https://learn.microsoft.com/power-platform/admin/api-request-limits-allocations#licensed-user-request-limits">[limits]</a></td></tr>
+<tr><td>4</td><td><b>Dataverse feature gaps.</b> No FetchXML, no alternate keys, no polymorphic lookups from code apps. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-dataverse">[dataverse]</a></td></tr>
+</table>
+
+<h3>The reviewer's patterns</h3>
+<p>Healthy designs push work to the server side of the connector: filtered views or stored procedures in SQL, Dataverse views, purpose-built endpoints on your own APIs. The client should receive result sets that are already small. When you see client-side filtering over a broad table pull in a design, that's the delegation trap wearing a disguise.</p>
+
+<div class="callout"><b>ADR tie-in.</b> Admission criterion 2 ("data fits the connector model, queries survive delegation") exists because of this lesson. In review, operationalize it as: <em>show me every query that could return more than 500 rows, and what happens to it.</em></div>
+
+<h3>Retrieval check</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"A non-delegable query past the row limit does what?","options":["Throws an error","Silently drops rows","Falls back server-side","Pages automatically forward"],"answer":1,"why":"Silent truncation at 500 rows (2,000 max) — a wrong answer, not an error. The most dangerous behavior in the whole data tier."},
+ {"stem":"A connection schema change requires what?","options":["Automatic type refresh","Editing generated files","Delete and re-add","A solution upgrade"],"answer":2,"why":"The generated typed clients only regenerate when the data source is deleted and re-added — there is no refresh command."},
+ {"stem":"Synchronous flow calls time out after?","options":["30 seconds","60 seconds","120 seconds","300 seconds"],"answer":2,"why":"120 seconds. Anything longer must become asynchronous or move into your own backend behind a custom connector."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="l5">Lesson 5 · ALM — one-way Git, solutions, and pipelines</h2>
+<p class="win">Win: explain to a DevOps lead exactly which of our practices survive unchanged, which change shape, and which questions are still open.</p>
+
+<h3>Survives unchanged</h3>
+<p>The app is a normal React/TS repo. Git stays the source of truth; PR review, branch policy, SAST/SCA/SBOM scanning, unit tests (Vitest/Jest) and E2E (Playwright — the official templates ship with it) all run exactly as today. This is the genuine ALM advantage over canvas apps, whose source lives inside the platform.</p>
+
+<h3>Changes shape</h3>
+<table>
+<tr><td><b>Deployment artifact</b></td><td><code>pac code push</code> uploads the compiled bundle, one-way. There is no download command and Power Platform Git integration + Solution Packager are explicitly unsupported for code apps. The platform is a deployment <em>target</em>, never a source. <a href="https://learn.microsoft.com/power-platform/developer/cli/reference/code">[cli]</a></td></tr>
+<tr><td><b>Transport unit</b></td><td>Apps attach to a solution at push (<code>--solutionName</code>). Solutions move between environments; connection references (CLI ≥ 1.51.1) and environment variables make one artifact target dev data in dev and prod data in prod. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/push-to-solution">[push-to-solution]</a></td></tr>
+<tr><td><b>First-party CD</b></td><td>Solutions + Power Platform Pipelines is the documented dev→test→prod path. Azure DevOps / GitHub Actions can drive solution import/export instead, but for code apps specifically that route is community-documented, not first-party.</td></tr>
+<tr><td><b>Environment prerequisite</b></td><td>Code app operations are <b>disabled by default per environment</b> — an admin toggle enables them. We confirmed this empirically: our spike's push returned 403 <code>CodeAppOperationNotAllowedInEnvironment</code> on an untouched environment.</td></tr>
+<tr><td><b>Toolchain</b></td><td>The <code>pac code</code> command group is preview-and-deprecating; its npm replacement (<code>power-apps init/run/push</code>) is itself preview. Pin versions; platform engineering tracks the migration.</td></tr>
+</table>
+
+<h3>Still open — and honestly so</h3>
+<p>Whether a solution export <em>carries the compiled bundle</em> (so a downstream import reproduces the app) or every environment needs its own <code>pac code push</code> is undocumented. Our spike to answer it was halted at the environment toggle and consciously skipped; the ADR records the existing-CI default as provisional until this is answered. When a team asks "so how exactly does prod deployment work?", the correct current answer is: <em>solution-based, existing-CI by default, one open question we will answer empirically before the paved road ships.</em></p>
+
+<div class="callout"><b>ADR tie-in.</b> Point 4 (spike-gated CI/CD) and point 5 (platform engineering owns the paved road, including the environment toggle) both came from this lesson's material. Note the honest status marker inside the ADR itself — a decision document that hides its open questions is a liability.</div>
+
+<h3>Retrieval check</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"What does the platform store of your app?","options":["The full source","Compiled output only","Source plus build","An app scaffold"],"answer":1,"why":"Only the pushed bundle. No download exists, and Git integration / Solution Packager are unsupported — lose the repo, lose the app."},
+ {"stem":"The first-party documented CI/CD path is?","options":["GitHub Actions workflows","Azure DevOps tasks","Power Platform Pipelines","Manual environment pushes"],"answer":2,"why":"Solutions + Power Platform Pipelines. ADO/GitHub at the solution layer works but is community-documented for code apps."},
+ {"stem":"Code app operations in a fresh environment are?","options":["Enabled by default","Disabled by default","Gated by licensing","Preview-flag controlled only"],"answer":1,"why":"Off by default, enabled per environment by an admin — confirmed empirically by our spike's 403. The paved road must include this toggle."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="l6">Lesson 6 · Governance &amp; security — what you inherit, what you owe</h2>
+<p class="win">Win: walk a security reviewer through the inherited controls and the two exposures they'll care about, before they find them.</p>
+
+<h3>Inherited for free (the platform's half of the bargain)</h3>
+<p>Connector <b>DLP policies</b> are enforced against code apps at launch and at runtime; <b>per-app Conditional Access</b>, tenant isolation, sharing limits, App Quarantine, and admin-center health metrics all apply. For a self-hosted app, each of these is something your org would have had to build or buy; here they arrive with the host. This inherited-governance story is the strongest security argument <em>for</em> the tier.</p>
+
+<h3>The locked-down CSP (feature and friction)</h3>
+<p>The default Content Security Policy is restrictive: <code>connect-src 'none'</code> blocks <em>every</em> external call — including Application Insights telemetry — until an environment admin allow-lists the endpoint; <code>frame-ancestors</code> restricts embedding to <code>*.powerapps.com</code>; external CDN scripts are blocked; <code>worker-src 'none'</code> forecloses service workers (and with them offline/PWA — lesson 7). An npm package that phones home simply breaks. Plan the allow-list (telemetry first) into the environment baseline, not as a per-app surprise. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/system-limits-configuration">[system limits]</a></p>
+
+<h3>The two exposures to disclose proactively</h3>
+<ol>
+<li><b>The bundle endpoint is public.</b> Compiled assets are served from an endpoint with no IP restriction. Mitigation: Conditional Access by location — and an absolute rule that no secrets or sensitive data ship in the bundle. Everything privileged goes through connectors, which authenticate per user.</li>
+<li><b>Auth has no escape hatch.</b> The host performs Entra ID sign-in; you cannot bring another IdP or a custom login flow. Backend extension happens only via custom connectors (Entra OAuth or managed identity). For internal-only apps this is a simplification; state it as a constraint, not a surprise.</li>
+</ol>
+
+<p>One inventory caveat: the CoE Starter Kit is no longer maintained — governance inventory now lives in the admin center — and whether code apps surface there as a distinct app type is unconfirmed. Your admins should verify before promising reporting granularity.</p>
+
+<div class="callout"><b>ADR tie-in.</b> The paved road (point 5) exists mostly because of this lesson: CSP allow-listing, DLP coordination, and Conditional Access are environment-level concerns no app team can self-serve. An app that ships before the telemetry endpoint is allow-listed flies blind.</div>
+
+<h3>Retrieval check</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"The default CSP's connect-src policy means?","options":["All origins are allowed","Only Microsoft domains allowed","No external calls allowed","Same-origin calls only allowed"],"answer":2,"why":"connect-src 'none' — nothing external, telemetry included, until an environment admin allow-lists specific endpoints."},
+ {"stem":"Before your app can send telemetry to App Insights, what must happen?","options":["Nothing, it just works","Admin allow-lists the endpoint","Premium license gets assigned","The bundle is re-signed"],"answer":1,"why":"The telemetry endpoint is an external call, so it is CSP-blocked by default. Put it in the environment baseline on day one."},
+ {"stem":"The deployed bundle's endpoint is?","options":["IP-restricted by default","Public without restriction","Tenant-network locked down","Hidden behind VPN"],"answer":1,"why":"Public, no IP restriction. Mitigate with Conditional Access by location, and never ship sensitive data in the bundle."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="l7">Lesson 7 · Limits &amp; saying no — the tier-admission checklist</h2>
+<p class="win">Win: run a tier-admission review in fifteen minutes and defend every "no" with a category, not an opinion.</p>
+
+<h3>Classify before you argue</h3>
+<p>Every limitation belongs to one of three categories, and the category decides how you talk about it:</p>
+<table>
+<tr><td><b>(a) Documented hard limit</b></td><td>True today, could change: app size limits, Excel Online connector unsupported, no FetchXML from Dataverse, Test Studio/Test Engine coverage absent.</td></tr>
+<tr><td><b>(b) Preview gap</b></td><td>Tooling churn likely to close: the pac→npm CLI migration, Dataverse image/file upload in preview, CLI-created connections in preview.</td></tr>
+<tr><td><b>(c) Inherent architectural constraint</b></td><td>Will not change without a redesign of the model: no server tier of yours, connector-only data, no mobile player (Microsoft: "in our backlog… no current ETA or plan"), no offline/PWA (CSP <code>worker-src 'none'</code>), Entra-only auth.</td></tr>
+</table>
+<p>Category (c) items are the ones that rule apps out of the tier permanently; category (b) items are why the ADR carries a 12-month criticality carve-out. Never present a (b) as a (c) or vice versa — stakeholders remember. <a href="https://learn.microsoft.com/power-apps/developer/code-apps/system-limits-configuration">[system limits]</a>, <a href="https://github.com/microsoft/PowerAppsCodeApps">[official repo]</a></p>
+
+<h3>The admission checklist, operationalized</h3>
+<ol>
+<li><b>Audience &amp; surface:</b> internal, desktop-browser. Any mobile, offline, or PWA requirement → out (category c). Teams/SharePoint embedding needs a frame-ancestors exception — check early.</li>
+<li><b>Data shape:</b> every query that could exceed 500 rows must be delegable or server-filtered. Bulk writes or multi-row transactions → own backend behind a custom connector, or out.</li>
+<li><b>Volume:</b> requests/user/day within quota with margin; nothing synchronous beyond 120s; payloads under ~3&nbsp;MB.</li>
+<li><b>Auth:</b> Entra-only, internal users. External identities → out.</li>
+<li><b>Deployment:</b> team accepts solution-based transport and the paved road.</li>
+<li><b>Criticality:</b> tier-1/business-critical → wait out the carve-out.</li>
+</ol>
+
+<h3>The exit story (asymmetric, by design)</h3>
+<p>If the company ever leaves: the React/Vite front-end ports cleanly — it's standard code. What gets rewritten: every SDK call and generated connector service, plus auth and hosting. What survives untouched: logic already externalized into your own Azure services behind custom connectors. That asymmetry is why the ADR's logic-placement default is the single highest-leverage policy in the tier — it converts unbounded lock-in into a bounded, estimable rewrite.</p>
+
+<div class="callout"><b>ADR tie-in.</b> This lesson <em>is</em> ADR points 1–3 in operational form. When you reject an app, cite the criterion and the category: "criterion 1, category (c) — offline is architecturally unavailable" ends arguments; "it doesn't feel like a fit" starts them.</div>
+
+<h3>Retrieval check</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"Mobile and offline support for code apps is?","options":["Coming next quarter","Available in preview","Architecturally ruled out","A licensing add-on"],"answer":2,"why":"No mobile player (no ETA or plan, per Microsoft on GitHub) and CSP worker-src 'none' blocks the service workers offline needs — category (c)."},
+ {"stem":"On a future platform exit, what ports cleanly?","options":["Generated connector services","The React front-end","Power Automate flows","Dataverse plugin logic"],"answer":1,"why":"The front-end is standard React/Vite. SDK calls, generated services, auth, and platform-side logic are the rewrite; externalized Azure logic survives."},
+ {"stem":"Which app fails tier admission?","options":["Desktop expense report viewer","Field technician offline app","Internal inventory CRUD screen","HR desk booking tool"],"answer":1,"why":"Field + offline hits criterion 1 as a category (c) exclusion. The other three are the tier's home turf."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="l8">Lesson 8 · Capstone — defending the ADR</h2>
+<p class="win">Win: survive six realistic stakeholder challenges. Answer each aloud before expanding the model answer.</p>
+
+<details><summary>The executive: "We already pay for Azure. Why add a platform?"</summary>
+<p>We're not adding spend — our users already hold Power Apps Premium, so the tier's marginal license cost is approximately zero. What we're removing is build cost: hosting, Entra sign-in, sharing, DLP, and Conditional Access arrive from the host instead of being built per app. The ADR binds this to a condition: if our EA changes and Premium coverage lapses, the decision re-opens — that's a named revisit trigger.</p></details>
+
+<details><summary>The engineer: "Why can't I just query the database?"</summary>
+<p>There's no path to it — data access is connector-only, by architecture. And the connector tier has different semantics than SQL: non-delegable queries silently truncate at 500 rows, there are no multi-row transactions, and every call is metered. Design server-side: filtered views, stored procedures, or our own API behind a custom connector. If your app genuinely needs direct database semantics, it fails admission criterion 2 and belongs in the pro-code lane — that's the tier working as designed, not a workaround.</p></details>
+
+<details><summary>The security reviewer: "Who serves your bundle, and from where?"</summary>
+<p>The Power Apps host, from a public endpoint with no IP restriction — mitigated by Conditional Access by location, and by policy nothing sensitive ships in the bundle; all privileged access is per-user through connectors. In exchange we inherit runtime DLP, per-app Conditional Access, tenant isolation, and App Quarantine. Source never leaves our Git, so your SAST/SCA pipeline covers it unchanged.</p></details>
+
+<details><summary>The finance partner: "What does 5,000 users actually cost?"</summary>
+<p>At list, $100k/month; at the documented 2,000+ volume tier, $60k/month; per-app pay-as-you-go would be at most $50k/month for a single app and scales with active use — but its validity for code apps is unconfirmed and we don't rely on it. For us the practical number is ~$0 marginal, because target users already hold Premium. The exposed assumption is the EA — hence the revisit trigger.</p></details>
+
+<details><summary>The PM: "Can we build the field-technician app on this?"</summary>
+<p>No — and this is a permanent no, not a timing no. Code apps don't run in the mobile player (Microsoft: backlog, no ETA or plan) and the CSP blocks service workers, so offline is architecturally unavailable. That app takes the pro-code lane. Admission criterion 1, category (c).</p></details>
+
+<details><summary>The architect: "Why not just use Power Platform Pipelines like the docs say?"</summary>
+<p>Default is our existing Azure DevOps/GitHub CI at the solution layer, because one CD system with our PR gates beats running a second deployment stack. That default is explicitly provisional: whether a solution export carries the compiled bundle is undocumented, our spike to answer it was halted at the environment toggle, and the ADR records Pipelines as the fallback if the answer forces it. We answer it empirically before the paved road ships.</p></details>
+
+<h3>Final interleaved retrieval — all eight lessons</h3>
+<div class="quiz"><script type="application/json">[
+ {"stem":"5,000 users at the Premium volume tier costs roughly?","options":["$25k monthly","$50k monthly","$60k monthly","$100k monthly"],"answer":2,"why":"$12/user/mo × 5,000 = $60k. List price ($20) would be $100k; PAYG caps at $50k for one app but is unconfirmed for code apps."},
+ {"stem":"Our marginal license cost is ~$0 because?","options":["Code apps are free","Users already hold Premium","PAYG covers all users","M365 includes code apps"],"answer":1,"why":"Premium is required regardless — it costs us nothing extra only because the seats already exist. An EA change re-opens the ADR."},
+ {"stem":"Business logic's default home in the tier?","options":["Inside the SPA bundle","Power Automate flow steps","Own services behind connectors","Dataverse plugins and workflows"],"answer":2,"why":"The threshold policy: simple CRUD goes connector-direct; real logic goes in our Azure services behind thin custom connectors — bounding both platform ceilings and exit cost."},
+ {"stem":"A query returns exactly 500 rows, suspiciously. First suspect?","options":["Delegation truncation","Connector outage","Quota exhaustion","CSP blocking"],"answer":0,"why":"Exactly-the-limit row counts are the signature of silent non-delegable truncation. Outages and quota produce errors; CSP blocks the call entirely."},
+ {"stem":"Who tracks the CLI migration, per the ADR?","options":["App teams","Platform engineering","Microsoft support","Environment admins"],"answer":1,"why":"Toolchain churn is paved-road ownership: platform engineering pins versions and tracks the pac→npm migration so app teams don't each absorb it."},
+ {"stem":"The still-open CI/CD question is whether?","options":["Solutions carry compiled bundles","Pipelines can deploy apps","Actions may import solutions","Push requires admin rights"],"answer":0,"why":"If solution import reproduces the app downstream, existing CI suffices; if each environment needs its own pac code push, pipeline design changes. Unanswered — the spike was skipped."}
+]</script></div>
+
+<!-- ============================================================ -->
+<h2 id="glossary">Appendix · Glossary (condensed)</h2>
+<div class="wide"><table>
+<tr><td><b>Code app</b></td><td>Your SPA (React/TS + Vite), written in your IDE, hosted and delivered by the Power Apps host. GA 2026-02-05.</td></tr>
+<tr><td><b>Power Apps host</b></td><td>The platform runtime: serves the bundle, signs users in via Entra ID, enforces governance, meters usage.</td></tr>
+<tr><td><b><code>@microsoft/power-apps</code></b></td><td>The SDK: host handshake (<code>getContext()</code>) and connector data operations.</td></tr>
+<tr><td><b>Connector</b></td><td>Platform-managed proxy to a data source or API; the only data path a code app has.</td></tr>
+<tr><td><b>Custom connector</b></td><td>A connector over your own REST API — the business-logic escape hatch and the exit-portability boundary.</td></tr>
+<tr><td><b>Delegation</b></td><td>Whether a query runs at the source or client-side over a partial download; non-delegable queries silently truncate at 500/2,000 rows.</td></tr>
+<tr><td><b>Power Platform Request</b></td><td>Metered usage unit; per-user daily quota of 40,000 (Premium) or 6,000 (other licenses).</td></tr>
+<tr><td><b>Premium / seeded / Dev Plan</b></td><td>$20 ($12 volume) per-user license every end user needs / the M365 grant that does NOT cover code apps / the free plan developers build on.</td></tr>
+<tr><td><b>Environment</b></td><td>Platform isolation unit; code app operations are off by default per environment (admin toggle).</td></tr>
+<tr><td><b>Solution</b></td><td>Packaging/transport unit for ALM; apps attach at push, move dev→test→prod via export/import or Pipelines.</td></tr>
+<tr><td><b>Connection reference</b></td><td>Solution-aware pointer to a connection, rebindable per environment.</td></tr>
+<tr><td><b>Power Platform Pipelines</b></td><td>Microsoft's built-in solution deployment system; the first-party CD path.</td></tr>
+<tr><td><b>DLP policy</b></td><td>Admin rules on connector combinations; enforced on code apps at launch and runtime.</td></tr>
+<tr><td><b>CSP</b></td><td>The host's Content Security Policy: no external calls, no service workers, restricted embedding — admin allow-lists exceptions.</td></tr>
+<tr><td><b><code>pac</code> / <code>power-apps</code> CLI</b></td><td>Developer tooling; the former's <code>code</code> group is deprecating, its npm successor is preview. Pin versions.</td></tr>
+</table></div>
+
+<h2 id="sources">Appendix · Sources</h2>
+<p>This course compresses four cited research briefs and one ADR in this repo — <code>docs/research/2026-07-21-code-apps-programming-model.md</code>, <code>…-licensing-distribution.md</code>, <code>…-alm-governance.md</code>, <code>…-limits-adaptation.md</code>, and <code>docs/decisions/2026-07-21-code-apps-tier-adoption.md</code> — which carry claim-level citations. Primary sources referenced throughout:</p>
+<ul>
+<li><a href="https://learn.microsoft.com/power-apps/developer/code-apps/overview">Code apps overview</a> · <a href="https://learn.microsoft.com/power-apps/developer/code-apps/architecture">Architecture</a> · <a href="https://learn.microsoft.com/power-apps/developer/code-apps/system-limits-configuration">System limits &amp; configuration</a></li>
+<li><a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-data">Connect to data</a> · <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-dataverse">Connect to Dataverse</a> · <a href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/push-to-solution">Push to solution</a></li>
+<li><a href="https://learn.microsoft.com/power-platform/developer/cli/reference/code">pac code CLI reference</a> · <a href="https://learn.microsoft.com/power-platform/admin/api-request-limits-allocations#licensed-user-request-limits">Request limits &amp; allocations</a></li>
+<li><a href="https://cdn-dynmedia-1.microsoft.com/is/content/microsoftcorp/microsoft/bade/documents/products-and-services/en-us/bizapps/Power-Platform-Licensing-Guide.pdf">Power Platform Licensing Guide (PDF)</a> · <a href="https://www.microsoft.com/power-platform/products/power-apps/pricing">Pricing</a> · <a href="https://www.microsoft.com/en-us/licensing/news/power-app-per-app-end-of-sale">Per-app end of sale</a></li>
+<li><a href="https://www.microsoft.com/en-us/power-platform/blog/power-apps/generally-available-host-and-run-code-apps-in-power-apps/">GA announcement (2026-02-05)</a> · <a href="https://github.com/microsoft/PowerAppsCodeApps">microsoft/PowerAppsCodeApps</a></li>
+</ul>
+
+<footer>
+<p><b>How to use this document:</b> read one lesson at a sitting, answer each quiz from memory, and return to wrong answers a day later — retrieval, not rereading, is what makes it stick. <b>Stuck or curious?</b> Ask your agent — it's your teacher and holds the briefs behind every claim here. Prices and preview statuses reflect July 2026; re-verify before quoting them externally.</p>
+</footer>
+</main>
+<script>
+document.querySelectorAll('.quiz').forEach((quiz) => {
+  const data = JSON.parse(quiz.querySelector('script[type="application/json"]').textContent);
+  let answered = 0, right = 0;
+  const score = document.createElement('p');
+  score.className = 'score';
+  data.forEach((item, qi) => {
+    const q = document.createElement('div');
+    q.className = 'q';
+    const stem = document.createElement('p');
+    stem.className = 'stem';
+    stem.textContent = (qi + 1) + '. ' + item.stem;
+    q.appendChild(stem);
+    const why = document.createElement('p');
+    why.className = 'why';
+    why.textContent = item.why;
+    item.options.forEach((text, oi) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'opt';
+      btn.textContent = text;
+      btn.addEventListener('click', () => {
+        q.querySelectorAll('button.opt').forEach((b) => (b.disabled = true));
+        q.querySelectorAll('button.opt')[item.answer].classList.add('correct');
+        if (oi === item.answer) right += 1; else btn.classList.add('wrong');
+        why.style.display = 'block';
+        answered += 1;
+        if (answered === data.length) score.textContent = 'Score: ' + right + ' / ' + data.length + ' — wrong answers are the valuable ones: reread just those sections, then move on.';
+      });
+      q.appendChild(btn);
+    });
+    q.appendChild(why);
+    quiz.appendChild(q);
+  });
+  quiz.appendChild(score);
+});
+</script>

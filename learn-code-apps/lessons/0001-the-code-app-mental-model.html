@@ -1,0 +1,60 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 · The Code App Mental Model</title>
+<link rel="stylesheet" href="../assets/course.css">
+<main>
+<p class="kicker">Lesson 0001 · Lead the Tier</p>
+<h1>The code app mental model: what runs where</h1>
+<p class="lede">One tangible win: after this lesson you can draw the code-app runtime on a whiteboard and say, without notes, what the platform owns and what your code owns.</p>
+
+<h2>Why this is lesson one</h2>
+<p>Every conversation you'll lead — with an executive asking "why are we paying for this?", an engineer asking "where does my code run?", or a security reviewer asking "who serves the bundle?" — starts from this picture. Licensing, limits, and ALM (lessons 3–7) are all consequences of it.</p>
+
+<h2>The picture</h2>
+<div class="diagram">
+  <div class="row">
+    <div class="node you"><b>Your repo (you own this)</b>React/TypeScript source · Vite build · your Git, PR review, CI, security scanning — unchanged.</div>
+  </div>
+  <div class="arrow">⬇ <code>pac code push</code> — uploads the <em>compiled bundle only</em>, one-way; the platform never stores source</div>
+  <div class="row">
+    <div class="node"><b>Power Apps host (platform owns this)</b>Serves your bundle · signs users in with Entra ID · enforces DLP, Conditional Access, sharing, CSP · meters usage.</div>
+  </div>
+  <div class="arrow">⬇ user opens the app · ⬆ <code>getContext()</code> handshake via the <a href="../reference/glossary.html#sdk">SDK</a></div>
+  <div class="row">
+    <div class="node you"><b>User's browser</b>Runs your SPA. All of your code executes here — there is <em>no server tier of yours</em>.</div>
+    <div class="node"><b>Connector layer</b>Every data call goes through a <a href="../reference/glossary.html#connector">connector</a>, metered as <a href="../reference/glossary.html#ppr">Power Platform Requests</a>.</div>
+    <div class="node"><b>Data</b>Dataverse · Azure SQL · SharePoint · your own APIs behind <a href="../reference/glossary.html#custom-connector">custom connectors</a>.</div>
+  </div>
+</div>
+<p class="legend">Dashed boxes: yours. Solid boxes: the platform's. The whole adoption trade lives in that dashed/solid split.</p>
+
+<h2>Five facts that anchor everything</h2>
+<table>
+<tr><td>1</td><td><b>Your code runs only in the user's browser.</b> A code app is a client-side SPA; anything that can't live in a browser must move behind a connector. <a class="cite" href="https://learn.microsoft.com/power-apps/developer/code-apps/architecture">[arch]</a></td></tr>
+<tr><td>2</td><td><b>The host is the value proposition.</b> Hosting, Entra sign-in, governance, delivery — that's what you stop building versus React + App Service. <a class="cite" href="https://learn.microsoft.com/power-apps/developer/code-apps/overview">[overview]</a></td></tr>
+<tr><td>3</td><td><b>Data is connector-only.</b> No connection strings, no direct DB. Typed clients are generated per data source; queries inherit <a href="../reference/glossary.html#delegation">delegation</a> semantics, not SQL semantics. <a class="cite" href="https://learn.microsoft.com/power-apps/developer/code-apps/how-to/connect-to-data">[data]</a></td></tr>
+<tr><td>4</td><td><b>Git is the only home your source has.</b> Push is one-way and compiled-only; there is no download. Lose the repo, lose the app. <a class="cite" href="https://learn.microsoft.com/power-platform/developer/cli/reference/code">[cli]</a></td></tr>
+<tr><td>5</td><td><b>Every end user needs Power Apps Premium.</b> No standard-connector discount, no M365 seeded coverage. (Our tier works because we already hold Premium broadly.) <a class="cite" href="https://learn.microsoft.com/power-apps/developer/code-apps/overview#prerequisites">[prereqs]</a></td></tr>
+</table>
+
+<div class="callout">
+<b>ADR tie-in.</b> Fact 1 is why the <a href="../../docs/decisions/2026-07-21-code-apps-tier-adoption.md">tier ADR</a> has a logic-placement policy at all: with no server tier of ours inside the platform, real business logic either degrades into flows/plugins or moves to our own Azure services behind custom connectors. The ADR chose the latter as the default.
+</div>
+
+<h2>Retrieval check</h2>
+<p>Answer from memory — the point is effortful recall, not a clean score.</p>
+<div class="quiz"><script type="application/json">[
+  {"stem":"Where does a code app's code execute at runtime?","options":["Host servers","Azure Functions","The browser","Dataverse runtime"],"answer":2,"why":"A code app is a client-side SPA. The host serves and governs it, but execution is entirely in the user's browser — there is no server tier of yours."},
+  {"stem":"What does `pac code push` send to the platform?","options":["Full source repository","Compiled build output","Solution zip file","Connector definition files"],"answer":1,"why":"Push uploads only the built bundle, one-way. The platform never holds your source — Git remains its only home."},
+  {"stem":"How does a code app reach its data?","options":["Direct database connections","Embedded connection strings","Serverless API proxies","Through platform connectors"],"answer":3,"why":"Connectors are the only data path. That single fact carries the delegation semantics, request metering, and DLP governance you'll meet in lessons 4 and 6."},
+  {"stem":"Who signs the end user in?","options":["Your app's login code","The Power Apps host","A custom token service","The browser's credential store"],"answer":1,"why":"Entra ID sign-in is performed by the host before your code runs — zero auth code in your app, and no custom-IdP escape hatch."}
+]</script></div>
+
+<h2>Go deeper</h2>
+<p><b>Primary source for this lesson:</b> the official <a href="https://learn.microsoft.com/power-apps/developer/code-apps/architecture">code apps architecture page</a> — a ten-minute read that maps one-to-one onto the diagram above. The <a href="../../docs/research/2026-07-21-code-apps-programming-model.md">programming-model brief</a> in this repo is the cited deep dive.</p>
+
+<footer>
+<p><b>Stuck or curious?</b> Ask your agent — it's your teacher, and it holds the four research briefs behind this course. · Next: <i>Lesson 0002 — the four app models, and the "why not canvas?" answer.</i> · <a href="../reference/glossary.html">Glossary</a></p>
+</footer>
+</main>
+<script src="../assets/quiz.js"></script>
